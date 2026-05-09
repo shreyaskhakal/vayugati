@@ -117,7 +117,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
                   map.setZoom(16);
                 }
               }}
-              className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10"
+              className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10 w-12 h-12 flex items-center justify-center"
             >
               {/* Heat Pulse Marker */}
               <motion.div
