@@ -95,13 +95,19 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
     }
   }, [relocateJunctions]);
 
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map);
+  const onLoad = useCallback((m: google.maps.Map) => {
+    setMap(m);
   }, []);
 
-  const onUnmount = useCallback((map: google.maps.Map) => {
+  const onUnmount = useCallback(() => {
     setMap(null);
   }, []);
+
+  // Reactively update map style when theme changes
+  useEffect(() => {
+    if (!map) return;
+    map.setOptions({ styles: theme === 'dark' ? darkMapStyle : silverMapStyle });
+  }, [theme, map]);
 
   if (!isLoaded) return (
     <div className="w-full h-full bg-[var(--color-canvas)] flex flex-col items-center justify-center">

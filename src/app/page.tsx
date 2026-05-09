@@ -273,38 +273,65 @@ export default function Dashboard() {
         {activeTab === "green-corridor" && (
           <div className="absolute inset-0 pt-14 p-8 overflow-auto">
             <h2 className="text-2xl font-extrabold tracking-tight mb-6">Green Corridor Control</h2>
+
+            {/* DEMO STORY BANNER */}
+            <div className="mb-6 p-5 rounded-lg bg-[var(--color-surface-a)] border border-[var(--color-accent-indigo)]/30 shadow-[var(--shadow-weightless)]">
+              <div className="text-[10px] font-bold text-[var(--color-accent-indigo)] uppercase tracking-widest mb-2">📋 Demo Script</div>
+              <ol className="text-sm text-[var(--color-text-muted)] space-y-1 list-decimal list-inside">
+                <li>Open <strong className="text-[var(--color-text-main)]">Simulations</strong> → click <em>Infrastructure Failure</em> preset to set CRITICAL city state.</li>
+                <li>Go to <strong className="text-[var(--color-text-main)]">Pulse Map</strong> — watch red emergency nodes pulse aggressively.</li>
+                <li>Return here and click <strong className="text-green-500">Activate Green Sweep</strong> in the sidebar to auto-clear EMS routes.</li>
+                <li>Watch the <strong className="text-[var(--color-text-main)]">Artery Health</strong> tab — CRITICAL banner clears and sensor donut shifts to green.</li>
+              </ol>
+            </div>
+
+            {/* Impact Numbers */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              {[
+                { label: 'Emergency Response Time', value: '↓ 34%', color: 'text-green-500' },
+                { label: 'Avg Intersection Wait', value: '↓ 28%', color: 'text-green-500' },
+                { label: 'Carbon Emissions', value: '↓ 18%', color: 'text-green-500' },
+                { label: 'EMS Route Clearance', value: '< 90s', color: 'text-[var(--color-accent-indigo)]' },
+              ].map(stat => (
+                <div key={stat.label} className="p-5 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] text-center">
+                  <div className={`text-3xl font-black ${stat.color} mb-1`}>{stat.value}</div>
+                  <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest leading-tight">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
             <div className="flex flex-col gap-6 max-w-2xl">
-              <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-white shadow-[var(--shadow-weightless)] flex items-center justify-between">
+              <div className="p-6 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold">Emergency Preemption</h3>
-                  <p className="text-sm text-gray-500">Auto-clear routes for flagged EMS vehicles</p>
+                  <h3 className="font-bold text-[var(--color-text-main)]">Emergency Preemption</h3>
+                  <p className="text-sm text-[var(--color-text-muted)]">Auto-clear routes for flagged EMS vehicles</p>
                 </div>
                 <div className="w-12 h-6 bg-[var(--color-accent-indigo)] rounded-full flex items-center p-1 justify-end cursor-pointer">
                   <div className="w-4 h-4 bg-white rounded-full" />
                 </div>
               </div>
               
-              <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-white shadow-[var(--shadow-weightless)]">
-                <h3 className="font-bold mb-4">Active Incident Routes</h3>
-                <div className="flex items-center justify-between py-2 border-b border-dashed border-gray-200">
-                  <span className="text-sm font-mono text-blue-600">AMB-774</span>
-                  <span className="text-sm">En route to General Hospital</span>
+              <div className="p-6 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
+                <h3 className="font-bold mb-4 text-[var(--color-text-main)]">Active Incident Routes</h3>
+                <div className="flex items-center justify-between py-2 border-b border-[var(--color-border-subtle)]">
+                  <span className="text-sm font-mono text-blue-500">AMB-774</span>
+                  <span className="text-sm text-[var(--color-text-main)]">En route to General Hospital</span>
                   <span className="text-xs font-bold text-green-500">CLEAR</span>
                 </div>
                 <div className="flex items-center justify-between py-2">
-                  <span className="text-sm font-mono text-red-600">FIRE-22</span>
-                  <span className="text-sm">Responding to Sector 4</span>
+                  <span className="text-sm font-mono text-red-500">FIRE-22</span>
+                  <span className="text-sm text-[var(--color-text-main)]">Responding to Sector 4</span>
                   <span className="text-xs font-bold text-orange-500">ROUTING</span>
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-6 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
                    <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2">Today's Green Score</div>
                    <div className="text-5xl font-black text-green-500">87<span className="text-2xl text-[var(--color-text-muted)]">/100</span></div>
                    <div className="mt-4 text-xs font-bold text-[var(--color-text-muted)]">Top 10% among city zones</div>
                 </div>
-                <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
+                <div className="p-6 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
                    <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2">Est. CO₂ Tons Saved</div>
                    <div className="text-5xl font-black text-[var(--color-text-main)]">12.4</div>
                    <div className="mt-4 text-xs font-bold text-green-500">↓ 4% vs yesterday</div>
