@@ -48,7 +48,7 @@ export function Slider({ onDrag }: Props) {
         dragElastic={0}
         dragMomentum={false}
         style={{ x }}
-        className="absolute top-0 bottom-0 w-1 bg-[var(--color-accent-indigo)] cursor-ew-resize pointer-events-auto flex items-center justify-center translate-x-[-50%]"
+        className="absolute top-0 bottom-0 w-1 bg-[var(--color-accent-indigo)] cursor-ew-resize pointer-events-auto flex items-center justify-center -ml-[2px]"
       >
         <div className="w-8 h-8 bg-[var(--color-accent-indigo)] text-white rounded-full flex items-center justify-center shadow-[var(--shadow-indigo-glow)]">
           <ArrowLeftRight size={16} />
