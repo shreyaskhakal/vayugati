@@ -9,15 +9,23 @@ export const metadata: Metadata = {
   description: "Kinetic Infrastructure Interface",
 };
 
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { SplashScreen } from "@/components/Layout/SplashScreen";
+import { ToastManager } from "@/components/Layout/ToastManager";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans overflow-hidden bg-canvas text-[#111827]">
-        {children}
+    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col font-sans overflow-hidden bg-[var(--color-canvas)] text-[var(--color-text-main)] transition-colors duration-500">
+        <ThemeProvider>
+          <SplashScreen />
+          <ToastManager />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

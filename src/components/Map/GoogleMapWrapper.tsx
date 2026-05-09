@@ -122,16 +122,20 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
               {/* Heat Pulse Marker */}
               <motion.div
                 animate={{
-                  boxShadow: ["0 0 0 0px rgba(79,70,229,0.7)", "0 0 0 30px rgba(79,70,229,0)"]
+                  boxShadow: [
+                    `0 0 0 0px ${j.status === 'emergency' ? 'rgba(239,68,68,0.7)' : j.status === 'warning' ? 'rgba(249,115,22,0.7)' : 'rgba(79,70,229,0.7)'}`, 
+                    `0 0 0 30px rgba(79,70,229,0)`
+                  ]
                 }}
                 transition={{
-                  duration: Math.max(0.5, 2.5 - (j.density * 2)), // Higher density = faster pulse
+                  duration: Math.max(0.5, 2.5 - (j.density * 2)),
                   repeat: Infinity,
                   ease: "easeOut"
                 }}
                 className={clsx(
-                  "w-4 h-4 rounded-full bg-[var(--color-accent-indigo)]",
-                  activeJunctionId === j.id && "ring-4 ring-white"
+                  "w-4 h-4 rounded-full",
+                  j.status === 'emergency' ? 'bg-red-500' : j.status === 'warning' ? 'bg-orange-500' : 'bg-[var(--color-accent-indigo)]',
+                  activeJunctionId === j.id && "ring-4 ring-[var(--color-canvas)]"
                 )}
               />
             </div>
@@ -151,11 +155,22 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         
         {/* Render predicted paths/nodes here in a real app. We simulate by overlaying glowing borders */}
         {isLoaded && map && junctions.map((j) => {
-          // Simplistic projection simulation since OverlayView is coupled to GoogleMap children.
-          // To overlay properly without duplicate maps, we render absolute divs. This is complex without map projection logic.
-          // For the blueprint, we visually simulate the AI wipe layer with the background tint and a static label.
           return null;
         })}
+      </div>
+
+      {/* Mini-Legend */}
+      <div className="absolute bottom-6 right-6 bg-[var(--color-surface-a)]/90 backdrop-blur-md shadow-[var(--shadow-weightless)] px-4 py-3 rounded-lg border border-[var(--color-border-subtle)] flex flex-col gap-2 z-10">
+        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Pulse Legend</div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--color-accent-indigo)] shadow-[var(--shadow-indigo-glow)]" /> Optimal Flow
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
+          <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]" /> Warning / Congestion
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
+          <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse" /> Critical / Emergency
+        </div>
       </div>
     </div>
   );

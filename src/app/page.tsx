@@ -17,6 +17,7 @@ export default function Dashboard() {
   const activeJunction = junctions.find((j) => j.id === activeJunctionId);
 
   const [logSearch, setLogSearch] = useState("");
+  const [logFilterSeverity, setLogFilterSeverity] = useState<string | null>(null);
   
   // Dynamic Global Severity
   const isCritical = junctions.some(j => j.status === 'emergency');
@@ -39,10 +40,11 @@ export default function Dashboard() {
     { time: "10:43:00", level: "CRIT", message: "Emergency preemption triggered on Sector 4", color: "text-red-400" },
   ];
 
-  const filteredLogs = MOCK_LOGS.filter(log => 
-    log.message.toLowerCase().includes(logSearch.toLowerCase()) || 
-    log.level.toLowerCase().includes(logSearch.toLowerCase())
-  );
+  const filteredLogs = MOCK_LOGS.filter(log => {
+    const matchesSearch = log.message.toLowerCase().includes(logSearch.toLowerCase()) || log.level.toLowerCase().includes(logSearch.toLowerCase());
+    const matchesSeverity = logFilterSeverity ? log.level === logFilterSeverity : true;
+    return matchesSearch && matchesSeverity;
+  });
 
   return (
     <div
@@ -103,6 +105,20 @@ export default function Dashboard() {
                  </div>
               </div>
             </div>
+            
+            <div className="mt-6 p-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] bg-[var(--color-surface-a)]">
+               <h3 className="font-bold mb-2">AI Predictive Health Analysis</h3>
+               <div className="flex items-center justify-between py-3 border-b border-[var(--color-border-subtle)]">
+                 <span className="font-mono text-sm text-[var(--color-text-main)]">Artery 4B</span>
+                 <span className="text-sm text-[var(--color-text-muted)]">Likely to degrade in ~2h based on current load</span>
+                 <span className="text-xs font-bold text-orange-500">72% RISK</span>
+               </div>
+               <div className="flex items-center justify-between py-3">
+                 <span className="font-mono text-sm text-[var(--color-text-main)]">Tunnel 9</span>
+                 <span className="text-sm text-[var(--color-text-muted)]">Structural load nominal, expected clear</span>
+                 <span className="text-xs font-bold text-green-500">12% RISK</span>
+               </div>
+            </div>
           </div>
         )}
 
@@ -131,6 +147,19 @@ export default function Dashboard() {
                   <span className="text-sm font-mono text-red-600">FIRE-22</span>
                   <span className="text-sm">Responding to Sector 4</span>
                   <span className="text-xs font-bold text-orange-500">ROUTING</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
+                   <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2">Today's Green Score</div>
+                   <div className="text-5xl font-black text-green-500">87<span className="text-2xl text-[var(--color-text-muted)]">/100</span></div>
+                   <div className="mt-4 text-xs font-bold text-[var(--color-text-muted)]">Top 10% among city zones</div>
+                </div>
+                <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
+                   <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2">Est. CO₂ Tons Saved</div>
+                   <div className="text-5xl font-black text-[var(--color-text-main)]">12.4</div>
+                   <div className="mt-4 text-xs font-bold text-green-500">↓ 4% vs yesterday</div>
                 </div>
               </div>
             </div>
@@ -171,17 +200,46 @@ export default function Dashboard() {
                   {isSimulating ? "Running AI Analysis (Gemini 1.5 Flash)..." : "Run Prediction Model"}
                 </button>
               </div>
+              
+              <div className="flex flex-col gap-4">
+                <h3 className="font-bold text-lg">Preset Simulation Scenarios</h3>
+                <button className="p-4 border border-[var(--color-border-subtle)] rounded text-left hover:bg-[var(--color-surface-a)] transition-colors" onClick={() => {
+                  updateJunction('J1', { density: 0.9, status: 'warning', throughput: 2800 });
+                  updateJunction('J2', { density: 0.95, status: 'emergency', throughput: 450 });
+                  updateJunction('J3', { density: 0.85, status: 'warning', throughput: 1100 });
+                  setActiveTab('pulse-map');
+                }}>
+                  <div className="font-bold">Rush Hour Gridlock</div>
+                  <div className="text-sm text-[var(--color-text-muted)]">Simulates 5PM Friday traffic density load across all central arteries.</div>
+                </button>
+                <button className="p-4 border border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-900/10 rounded text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onClick={() => {
+                  updateJunction('J3', { density: 1.0, status: 'emergency', throughput: 0 });
+                  updateJunction('J4', { density: 0.9, status: 'warning', throughput: 500 });
+                  setActiveTab('pulse-map');
+                }}>
+                  <div className="font-bold text-blue-700 dark:text-blue-400">Flood Event</div>
+                  <div className="text-sm text-[var(--color-text-muted)]">Simulates severe waterlogging at Junction 3, routing traffic to J4.</div>
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === "system-logs" && (
           <div className="absolute inset-0 pt-14 bg-[#111827] flex flex-col font-mono text-xs overflow-hidden">
-            <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-900 shadow-md z-10">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2"><Search size={16} className="text-gray-500"/> System Telemetry Logs</h2>
+            <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-900 shadow-md z-10 gap-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2 whitespace-nowrap"><Search size={16} className="text-gray-500"/> Telemetry Logs</h2>
+              
+              <div className="flex items-center gap-2">
+                <button onClick={() => setLogFilterSeverity(null)} className={clsx("px-3 py-1 rounded-full text-xs font-bold", !logFilterSeverity ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-500")}>ALL</button>
+                <button onClick={() => setLogFilterSeverity('INFO')} className={clsx("px-3 py-1 rounded-full text-xs font-bold", logFilterSeverity === 'INFO' ? "bg-green-900 text-green-400" : "bg-gray-800 text-gray-500")}>INFO</button>
+                <button onClick={() => setLogFilterSeverity('WARN')} className={clsx("px-3 py-1 rounded-full text-xs font-bold", logFilterSeverity === 'WARN' ? "bg-orange-900 text-orange-400" : "bg-gray-800 text-gray-500")}>WARN</button>
+                <button onClick={() => setLogFilterSeverity('CRIT')} className={clsx("px-3 py-1 rounded-full text-xs font-bold", logFilterSeverity === 'CRIT' ? "bg-red-900 text-red-400" : "bg-gray-800 text-gray-500")}>CRIT</button>
+              </div>
+
               <input 
                 type="text" 
-                placeholder="Filter logs (e.g., WARN, J1)..." 
+                placeholder="Search..." 
                 value={logSearch}
                 onChange={(e) => setLogSearch(e.target.value)}
                 className="bg-gray-800 text-white px-4 py-2 rounded border border-gray-700 outline-none focus:border-[var(--color-accent-indigo)] w-64"
