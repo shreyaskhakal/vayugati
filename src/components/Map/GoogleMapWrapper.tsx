@@ -77,6 +77,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapCenter, setMapCenter] = useState(center);
   const [hoveredJunctionId, setHoveredJunctionId] = useState<string | null>(null);
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
   const { theme } = useTheme();
   const { junctions, setActiveJunctionId, activeJunctionId, relocateJunctions } = useStore();
 
@@ -103,11 +104,12 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
     setMap(null);
   }, []);
 
-  // Reactively update map style when theme changes
+  // Reactively update map style and type when theme/mapType changes
   useEffect(() => {
     if (!map) return;
-    map.setOptions({ styles: theme === 'dark' ? darkMapStyle : silverMapStyle });
-  }, [theme, map]);
+    map.setOptions({ styles: mapType === 'satellite' ? [] : (theme === 'dark' ? darkMapStyle : silverMapStyle) });
+    map.setMapTypeId(mapType);
+  }, [theme, map, mapType]);
 
   if (!isLoaded) return (
     <div className="w-full h-full bg-[var(--color-canvas)] flex flex-col items-center justify-center">
@@ -134,7 +136,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         zoom={13}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{ styles: theme === 'dark' ? darkMapStyle : silverMapStyle, mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: true }}
+        options={{ styles: mapType === 'satellite' ? [] : (theme === 'dark' ? darkMapStyle : silverMapStyle), mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: true, mapTypeId: mapType }}
       >
         {/* LIVE LAYER */}
         {junctions.map((j) => (
@@ -220,6 +222,30 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         {isLoaded && map && junctions.map((j) => {
           return null;
         })}
+      </div>
+
+      {/* Custom Map/Satellite toggle */}
+      <div className="absolute bottom-6 left-4 z-20 flex rounded-lg overflow-hidden shadow-lg border border-white/20 backdrop-blur-sm">
+        <button
+          onClick={() => setMapType('roadmap')}
+          className={`px-4 py-2 text-xs font-bold tracking-wider transition-all ${
+            mapType === 'roadmap'
+              ? 'bg-[var(--color-accent-indigo)] text-white'
+              : 'bg-black/60 text-gray-300 hover:bg-black/80'
+          }`}
+        >
+          MAP
+        </button>
+        <button
+          onClick={() => setMapType('satellite')}
+          className={`px-4 py-2 text-xs font-bold tracking-wider transition-all ${
+            mapType === 'satellite'
+              ? 'bg-[var(--color-accent-indigo)] text-white'
+              : 'bg-black/60 text-gray-300 hover:bg-black/80'
+          }`}
+        >
+          SATELLITE
+        </button>
       </div>
     </div>
   );
