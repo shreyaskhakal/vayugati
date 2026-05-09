@@ -76,7 +76,22 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
     setMap(null);
   }, []);
 
-  if (!isLoaded) return <div className="w-full h-full bg-[var(--color-canvas)] flex items-center justify-center text-xs tracking-widest uppercase">Initializing Telemetry...</div>;
+  if (!isLoaded) return (
+    <div className="w-full h-full bg-[var(--color-canvas)] flex flex-col items-center justify-center">
+      <motion.div 
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} 
+        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+        className="w-12 h-12 rounded-full border-4 border-[var(--color-accent-indigo)] border-t-transparent animate-spin mb-4"
+      />
+      <motion.div 
+        animate={{ opacity: [0.5, 1, 0.5] }}
+        transition={{ repeat: Infinity, duration: 1.5 }}
+        className="text-xs font-bold tracking-[0.2em] uppercase text-[var(--color-accent-indigo)]"
+      >
+        Initializing Telemetry Link...
+      </motion.div>
+    </div>
+  );
 
   return (
     <div className="relative w-full h-full">
@@ -95,7 +110,13 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
             mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
           >
             <div 
-              onClick={() => setActiveJunctionId(j.id)}
+              onClick={() => {
+                setActiveJunctionId(j.id);
+                if (map) {
+                  map.panTo({ lat: j.lat, lng: j.lng });
+                  map.setZoom(16);
+                }
+              }}
               className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10"
             >
               {/* Heat Pulse Marker */}
