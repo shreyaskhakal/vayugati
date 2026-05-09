@@ -22,6 +22,7 @@ interface AppState {
   updateJunction: (id: string, updates: Partial<Junction>) => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  relocateJunctions: (baseLat: number, baseLng: number) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -40,5 +41,20 @@ export const useStore = create<AppState>((set) => ({
     junctions: state.junctions.map(j => j.id === id ? { ...j, ...updates } : j)
   })),
   activeTab: 'pulse-map',
-  setActiveTab: (tab) => set({ activeTab: tab })
+  setActiveTab: (tab) => set({ activeTab: tab }),
+  relocateJunctions: (baseLat, baseLng) => set((state) => {
+    const offsets = [
+      { dLat: 0.002, dLng: -0.005 },
+      { dLat: 0.008, dLng: 0.009 },
+      { dLat: -0.003, dLng: -0.012 },
+      { dLat: 0.012, dLng: -0.004 },
+    ];
+    return {
+      junctions: state.junctions.map((j, i) => ({
+        ...j,
+        lat: baseLat + (offsets[i] ? offsets[i].dLat : 0),
+        lng: baseLng + (offsets[i] ? offsets[i].dLng : 0),
+      }))
+    };
+  })
 }));

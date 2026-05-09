@@ -2,7 +2,7 @@
 
 import { GoogleMap, useJsApiLoader, OverlayView } from '@react-google-maps/api';
 import { useStore } from '@/store/useStore';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 
@@ -50,7 +50,23 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const { junctions, setActiveJunctionId, activeJunctionId } = useStore();
+  const [mapCenter, setMapCenter] = useState(center);
+  const { junctions, setActiveJunctionId, activeJunctionId, relocateJunctions } = useStore();
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setMapCenter({ lat: latitude, lng: longitude });
+          relocateJunctions(latitude, longitude);
+        },
+        (error) => {
+          console.warn("Geolocation permission denied or failed. Using default center.", error);
+        }
+      );
+    }
+  }, [relocateJunctions]);
 
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
@@ -66,7 +82,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
     <div className="relative w-full h-full">
       <GoogleMap
         mapContainerStyle={containerStyle}
-        center={center}
+        center={mapCenter}
         zoom={13}
         onLoad={onLoad}
         onUnmount={onUnmount}
