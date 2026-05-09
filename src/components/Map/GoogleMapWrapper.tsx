@@ -134,7 +134,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         zoom={13}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{ styles: theme === 'dark' ? darkMapStyle : [] }}
+        options={{ styles: theme === 'dark' ? darkMapStyle : silverMapStyle, mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: true }}
       >
         {/* LIVE LAYER */}
         {junctions.map((j) => (

@@ -206,8 +206,11 @@ export default function Dashboard() {
               </div>
               <div className="p-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] relative overflow-hidden bg-[var(--color-surface-a)]">
                  <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2 relative z-10">Active Sensor Nodes</div>
-                 <div className="text-5xl font-black text-[var(--color-text-main)] relative z-10">{junctions.length}</div>
-                 <div className="h-32 mt-4 flex items-center">
+                 <div className="text-5xl font-black text-[var(--color-text-main)] relative z-10">1,042</div>
+                 <div className="text-xs text-[var(--color-text-muted)] mt-1 relative z-10">
+                   <span className="font-bold text-[var(--color-text-main)]">{junctions.length}</span> monitored in central sector
+                 </div>
+                 <div className="h-28 mt-3 flex items-center">
                    <ResponsiveContainer width="50%" height="100%">
                      <PieChart>
                        <Pie data={PIE_DATA} innerRadius={35} outerRadius={50} paddingAngle={5} dataKey="value" stroke="none">
@@ -431,11 +434,11 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Results Panel */}
-                {simResults && (
-                  <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-base">Simulation Results</h3>
+                {/* Results Panel — always visible */}
+                <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-base">Simulation Results</h3>
+                    {simResults && (
                       <button
                         onClick={() => {
                           setSavedSims(prev => [...prev, {
@@ -449,40 +452,60 @@ export default function Dashboard() {
                       >
                         💾 Save Simulation
                       </button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
-                        <div className={clsx("text-3xl font-black", simResults.congestion > 70 ? 'text-red-500' : simResults.congestion > 40 ? 'text-orange-500' : 'text-green-500')}>
-                          {simResults.congestion}%
-                        </div>
-                        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">Predicted Congestion</div>
-                      </div>
-                      <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
-                        <div className="text-3xl font-black text-orange-500">{simResults.arteries.length}</div>
-                        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">Arteries Affected</div>
-                      </div>
-                      <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
-                        <div className="text-3xl font-black text-red-500">{simResults.etaImpact}</div>
-                        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">ETA Impact</div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-[var(--color-text-muted)]">
-                      <span className="font-bold text-[var(--color-text-main)]">Affected Arteries: </span>
-                      {simResults.arteries.join(', ')}
-                    </div>
-                    {compareToLive && (
-                      <div className="p-3 rounded bg-[var(--color-accent-indigo)]/5 border border-[var(--color-accent-indigo)]/20 text-xs">
-                        <div className="font-bold text-[var(--color-accent-indigo)] mb-1">Live vs Simulation</div>
-                        <div className="grid grid-cols-2 gap-2 text-[var(--color-text-muted)]">
-                          <span>Live Congestion: <strong className="text-[var(--color-text-main)]">~42%</strong></span>
-                          <span>Sim Congestion: <strong className={simResults.congestion > 70 ? 'text-red-500' : 'text-orange-500'}>{simResults.congestion}%</strong></span>
-                          <span>Live ETA: <strong className="text-[var(--color-text-main)]">Normal</strong></span>
-                          <span>Sim ETA: <strong className="text-orange-500">{simResults.etaImpact}</strong></span>
-                        </div>
-                      </div>
                     )}
                   </div>
-                )}
+
+                  {!simResults && !isSimulating && (
+                    <div className="text-center py-8 flex flex-col items-center gap-2">
+                      <div className="text-4xl">▶</div>
+                      <div className="text-sm font-bold text-[var(--color-text-muted)]">Set parameters and click Run Prediction</div>
+                      <div className="text-xs text-[var(--color-text-muted)]">Results will appear here — congestion %, affected arteries, and ETA impact</div>
+                    </div>
+                  )}
+
+                  {isSimulating && (
+                    <div className="text-center py-8 flex flex-col items-center gap-3">
+                      <div className="w-8 h-8 border-4 border-[var(--color-accent-indigo)] border-t-transparent rounded-full animate-spin" />
+                      <div className="text-sm font-bold text-[var(--color-accent-indigo)]">Running AI prediction model...</div>
+                    </div>
+                  )}
+
+                  {simResults && !isSimulating && (
+                    <>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
+                          <div className={clsx("text-3xl font-black", simResults.congestion > 70 ? 'text-red-500' : simResults.congestion > 40 ? 'text-orange-500' : 'text-green-500')}>
+                            {simResults.congestion}%
+                          </div>
+                          <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">Predicted Congestion</div>
+                        </div>
+                        <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
+                          <div className="text-3xl font-black text-orange-500">{simResults.arteries.length}</div>
+                          <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">Arteries Affected</div>
+                        </div>
+                        <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
+                          <div className="text-3xl font-black text-red-500">{simResults.etaImpact}</div>
+                          <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">ETA Impact</div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-[var(--color-text-muted)]">
+                        <span className="font-bold text-[var(--color-text-main)]">Affected Arteries: </span>
+                        {simResults.arteries.join(', ')}
+                      </div>
+                      {compareToLive && (
+                        <div className="p-3 rounded bg-[var(--color-accent-indigo)]/5 border border-[var(--color-accent-indigo)]/20 text-xs">
+                          <div className="font-bold text-[var(--color-accent-indigo)] mb-1">Live vs Simulation</div>
+                          <div className="grid grid-cols-2 gap-2 text-[var(--color-text-muted)]">
+                            <span>Live Congestion: <strong className="text-[var(--color-text-main)]">~42%</strong></span>
+                            <span>Sim Congestion: <strong className={simResults.congestion > 70 ? 'text-red-500' : 'text-orange-500'}>{simResults.congestion}%</strong></span>
+                            <span>Live ETA: <strong className="text-[var(--color-text-main)]">Normal</strong></span>
+                            <span>Sim ETA: <strong className="text-orange-500">{simResults.etaImpact}</strong></span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
 
                 {/* Saved Simulations */}
                 {savedSims.length > 0 && (
