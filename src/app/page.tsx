@@ -5,7 +5,8 @@ import { Sidebar } from "@/components/Layout/Sidebar";
 import { GoogleMapWrapper } from "@/components/Map/GoogleMapWrapper";
 import { Slider } from "@/components/DigitalTwin/Slider";
 import { JunctionCard } from "@/components/Telemetry/JunctionCard";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
 import clsx from "clsx";
 import { Search, ShieldAlert } from "lucide-react";
 import { LineChart, Line, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -26,6 +27,10 @@ export default function Dashboard() {
 
   const [logSearch, setLogSearch] = useState("");
   const [logFilterSeverity, setLogFilterSeverity] = useState<string | null>(null);
+  const [logTimeRange, setLogTimeRange] = useState<string>('1h');
+  const [logTailActive, setLogTailActive] = useState(true);
+  const logScrollRef = useRef<HTMLDivElement>(null);
+
   
   const [time, setTime] = useState("00:00:00");
   const [sortConfig, setSortConfig] = useState<{ key: 'risk' | 'location', direction: 'asc' | 'desc' }>({ key: 'risk', direction: 'desc' });
@@ -88,19 +93,54 @@ export default function Dashboard() {
     }));
   };
 
-  const MOCK_LOGS = [
-    { time: "10:42:01", level: "INFO", message: "Node J1 Density shift detected (0.3 -> 0.35)", color: "text-green-400" },
-    { time: "10:42:05", level: "INFO", message: "Synchronizing Digital Twin state... OK", color: "text-green-400" },
-    { time: "10:42:12", level: "WARN", message: "Node J3 latency spike (120ms)", color: "text-orange-400" },
-    { time: "10:42:15", level: "INFO", message: "Awaiting EMS transponder signals...", color: "text-green-400" },
-    { time: "10:43:00", level: "CRIT", message: "Emergency preemption triggered on Sector 4", color: "text-red-400" },
+  const ALL_LOGS = [
+    { time: "10:40:01", level: "INFO",  message: "System boot sequence complete. All nodes nominal.",              color: "text-green-400" },
+    { time: "10:40:22", level: "INFO",  message: "Digital Twin telemetry link established (WebSocket OK)",         color: "text-green-400" },
+    { time: "10:41:05", level: "WARN",  message: "Node J2 — latency spike detected (220ms, threshold: 150ms)",    color: "text-orange-400" },
+    { time: "10:41:30", level: "INFO",  message: "Green Sweep Protocol standing by (no active EMS routes)",       color: "text-green-400" },
+    { time: "10:42:01", level: "INFO",  message: "Node J1 density shift detected (0.30 → 0.35)",                  color: "text-green-400" },
+    { time: "10:42:05", level: "INFO",  message: "Synchronizing Digital Twin state... OK",                         color: "text-green-400" },
+    { time: "10:42:12", level: "WARN",  message: "Node J3 latency spike (120ms). Auto-recovery in progress.",      color: "text-orange-400" },
+    { time: "10:42:15", level: "INFO",  message: "Awaiting EMS transponder signals from dispatch...",              color: "text-green-400" },
+    { time: "10:42:55", level: "WARN",  message: "Artery BRG-1 — structural load approaching 85% threshold",       color: "text-orange-400" },
+    { time: "10:43:00", level: "CRIT",  message: "Emergency preemption triggered — Sector 4 lockdown active",      color: "text-red-400" },
+    { time: "10:43:08", level: "CRIT",  message: "Node J3 OFFLINE — density overflow (1.0), throughput = 0",       color: "text-red-400" },
+    { time: "10:43:22", level: "INFO",  message: "Rerouting confirmed: traffic redirected via EXP-5 and ART-2A",   color: "text-green-400" },
+    { time: "10:43:45", level: "WARN",  message: "Weather API: rain probability > 70% — activating wet-road mode", color: "text-orange-400" },
+    { time: "10:44:10", level: "INFO",  message: "Prediction model run complete. ETA impact: +14min avg",          color: "text-green-400" },
+    { time: "10:44:30", level: "CRIT",  message: "Alert: Sector 4 emergency still unresolved — escalating to L2",  color: "text-red-400" },
   ];
 
-  const filteredLogs = MOCK_LOGS.filter(log => {
+  const filteredLogs = ALL_LOGS.filter(log => {
     const matchesSearch = log.message.toLowerCase().includes(logSearch.toLowerCase()) || log.level.toLowerCase().includes(logSearch.toLowerCase());
     const matchesSeverity = logFilterSeverity ? log.level === logFilterSeverity : true;
     return matchesSearch && matchesSeverity;
   });
+
+  const logCounts = {
+    total: filteredLogs.length,
+    CRIT: filteredLogs.filter(l => l.level === 'CRIT').length,
+    WARN: filteredLogs.filter(l => l.level === 'WARN').length,
+    INFO: filteredLogs.filter(l => l.level === 'INFO').length,
+  };
+
+  // Auto-scroll to bottom when tail is active
+  useEffect(() => {
+    if (logTailActive && logScrollRef.current) {
+      logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight;
+    }
+  }, [filteredLogs, logTailActive]);
+
+  const handleExportLogs = () => {
+    const content = filteredLogs.map(l => `[${l.time}] ${l.level.padEnd(4)} : ${l.message}`).join('\n');
+    const blob = new Blob([`VAYU-GATI TELEMETRY EXPORT\nGenerated: ${new Date().toISOString()}\nFilter: ${logFilterSeverity ?? 'ALL'} | Search: "${logSearch}" | Range: ${logTimeRange}\n${'─'.repeat(60)}\n${content}`], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vg-logs-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div
@@ -500,33 +540,109 @@ export default function Dashboard() {
         )}
 
         {activeTab === "system-logs" && (
-          <div className="absolute inset-0 pt-14 bg-[#111827] flex flex-col font-mono text-xs overflow-hidden">
-            <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-900 shadow-md z-10 gap-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2 whitespace-nowrap"><Search size={16} className="text-gray-500"/> Telemetry Logs</h2>
-              
-              <div className="flex items-center gap-2">
-                <button onClick={() => setLogFilterSeverity(null)} className={clsx("px-3 py-1 rounded-full text-xs font-bold", !logFilterSeverity ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-500")}>ALL</button>
-                <button onClick={() => setLogFilterSeverity('INFO')} className={clsx("px-3 py-1 rounded-full text-xs font-bold", logFilterSeverity === 'INFO' ? "bg-green-900 text-green-400" : "bg-gray-800 text-gray-500")}>INFO</button>
-                <button onClick={() => setLogFilterSeverity('WARN')} className={clsx("px-3 py-1 rounded-full text-xs font-bold", logFilterSeverity === 'WARN' ? "bg-orange-900 text-orange-400" : "bg-gray-800 text-gray-500")}>WARN</button>
-                <button onClick={() => setLogFilterSeverity('CRIT')} className={clsx("px-3 py-1 rounded-full text-xs font-bold", logFilterSeverity === 'CRIT' ? "bg-red-900 text-red-400" : "bg-gray-800 text-gray-500")}>CRIT</button>
+          <div className="absolute inset-0 pt-14 bg-[#0d1117] flex flex-col font-mono text-xs overflow-hidden">
+            
+            {/* Header toolbar */}
+            <div className="p-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur z-10 flex flex-wrap items-center gap-3">
+              {/* Title + log count */}
+              <div className="flex items-center gap-3 mr-2">
+                <h2 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap">
+                  <Search size={14} className="text-gray-500"/>
+                  Telemetry Logs
+                </h2>
+                <span className="text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                  {logCounts.total} events —{" "}
+                  {logCounts.CRIT > 0 && <span className="text-red-400">{logCounts.CRIT} CRIT</span>}
+                  {logCounts.CRIT > 0 && logCounts.WARN > 0 && ", "}
+                  {logCounts.WARN > 0 && <span className="text-orange-400">{logCounts.WARN} WARN</span>}
+                  {(logCounts.CRIT > 0 || logCounts.WARN > 0) && logCounts.INFO > 0 && ", "}
+                  {logCounts.INFO > 0 && <span className="text-green-400">{logCounts.INFO} INFO</span>}
+                </span>
               </div>
 
-              <input 
-                type="text" 
-                placeholder="Search..." 
+              {/* Severity pills */}
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => setLogFilterSeverity(null)} className={clsx("px-2.5 py-1 rounded-full text-[10px] font-bold", !logFilterSeverity ? "bg-gray-600 text-white" : "bg-gray-800 text-gray-500")}>ALL</button>
+                <button onClick={() => setLogFilterSeverity('INFO')} className={clsx("px-2.5 py-1 rounded-full text-[10px] font-bold", logFilterSeverity === 'INFO' ? "bg-green-900 text-green-400" : "bg-gray-800 text-gray-500")}>INFO</button>
+                <button onClick={() => setLogFilterSeverity('WARN')} className={clsx("px-2.5 py-1 rounded-full text-[10px] font-bold", logFilterSeverity === 'WARN' ? "bg-orange-900 text-orange-400" : "bg-gray-800 text-gray-500")}>WARN</button>
+                <button onClick={() => setLogFilterSeverity('CRIT')} className={clsx("px-2.5 py-1 rounded-full text-[10px] font-bold", logFilterSeverity === 'CRIT' ? "bg-red-900 text-red-400" : "bg-gray-800 text-gray-500")}>CRIT</button>
+              </div>
+
+              {/* Time range pills */}
+              <div className="flex items-center gap-1 border-l border-gray-700 pl-3">
+                {['15m', '1h', '6h', '24h'].map(r => (
+                  <button key={r} onClick={() => setLogTimeRange(r)} className={clsx("px-2.5 py-1 rounded text-[10px] font-bold", logTimeRange === r ? "bg-[var(--color-accent-indigo)] text-white" : "bg-gray-800 text-gray-500 hover:text-gray-300")}>{r}</button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <input
+                type="text"
+                placeholder="Search logs..."
                 value={logSearch}
-                onChange={(e) => setLogSearch(e.target.value)}
-                className="bg-gray-800 text-white px-4 py-2 rounded border border-gray-700 outline-none focus:border-[var(--color-accent-indigo)] w-64"
+                onChange={e => setLogSearch(e.target.value)}
+                className="bg-gray-800 text-white px-3 py-1.5 rounded border border-gray-700 outline-none focus:border-[var(--color-accent-indigo)] text-xs flex-1 min-w-32"
               />
+
+              {/* Tail + Export controls */}
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={() => setLogTailActive(p => !p)}
+                  className={clsx(
+                    "px-3 py-1.5 rounded text-[10px] font-bold border transition-all",
+                    logTailActive
+                      ? "border-green-500/50 bg-green-900/30 text-green-400"
+                      : "border-gray-700 bg-gray-800 text-gray-400 hover:text-white"
+                  )}
+                >
+                  {logTailActive ? "⏸ Pause" : "▶ Resume"}
+                </button>
+                <button
+                  onClick={handleExportLogs}
+                  className="px-3 py-1.5 rounded text-[10px] font-bold border border-gray-700 bg-gray-800 text-gray-400 hover:text-white hover:border-gray-500 transition-all"
+                >
+                  ↓ Export
+                </button>
+              </div>
             </div>
-            <div className="flex-1 p-6 overflow-auto flex flex-col gap-1">
+
+            {/* Log lines */}
+            <div ref={logScrollRef} className="flex-1 p-4 overflow-auto flex flex-col gap-0.5">
               {filteredLogs.length > 0 ? filteredLogs.map((log, idx) => (
-                <span key={idx} className={log.color}>
-                  [{log.time}] {log.level.padEnd(4, ' ')} : {log.message}
-                </span>
+                <div
+                  key={idx}
+                  className={clsx(
+                    "px-3 py-1.5 rounded-sm flex items-start gap-3 leading-relaxed",
+                    log.level === 'CRIT'
+                      ? "border-l-2 border-red-500 bg-red-500/5 font-bold"
+                      : log.level === 'WARN'
+                      ? "border-l-2 border-orange-500/50"
+                      : "border-l-2 border-transparent"
+                  )}
+                >
+                  <span className="text-gray-600 shrink-0 tabular-nums">[{log.time}]</span>
+                  <span className={clsx(
+                    "shrink-0 w-10",
+                    log.level === 'CRIT' ? 'text-red-400' : log.level === 'WARN' ? 'text-orange-400' : 'text-green-400'
+                  )}>{log.level}</span>
+                  <span className={clsx("flex-1", log.level === 'CRIT' ? 'text-red-300' : 'text-gray-300')}>{log.message}</span>
+                </div>
               )) : (
-                <span className="text-gray-500 italic">No telemetry data matches your filter.</span>
+                <span className="text-gray-600 italic px-3">No telemetry data matches your filter.</span>
               )}
+            </div>
+
+            {/* Tail status bar */}
+            <div className="h-7 border-t border-gray-800 bg-gray-900/60 px-4 flex items-center justify-between">
+              <span className="text-[10px] text-gray-600">
+                Range: <span className="text-gray-400">{logTimeRange}</span>
+                {" · "}
+                Filter: <span className="text-gray-400">{logFilterSeverity ?? 'ALL'}</span>
+              </span>
+              <span className={clsx("text-[10px] font-bold flex items-center gap-1.5", logTailActive ? 'text-green-500' : 'text-gray-600')}>
+                <span className={clsx("w-1.5 h-1.5 rounded-full", logTailActive ? 'bg-green-500 animate-pulse' : 'bg-gray-600')} />
+                {logTailActive ? 'LIVE TAIL' : 'PAUSED'}
+              </span>
             </div>
           </div>
         )}
