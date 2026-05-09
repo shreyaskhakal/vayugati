@@ -5,9 +5,10 @@ import { Sidebar } from "@/components/Layout/Sidebar";
 import { GoogleMapWrapper } from "@/components/Map/GoogleMapWrapper";
 import { Slider } from "@/components/DigitalTwin/Slider";
 import { JunctionCard } from "@/components/Telemetry/JunctionCard";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import clsx from "clsx";
-import { Search } from "lucide-react";
+import { Search, ShieldAlert } from "lucide-react";
+import { LineChart, Line, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard() {
   const { activeTab, greenSweepActive, activeJunctionId, junctions, updateJunction, setActiveTab } = useStore();
@@ -19,6 +20,16 @@ export default function Dashboard() {
   const [logSearch, setLogSearch] = useState("");
   const [logFilterSeverity, setLogFilterSeverity] = useState<string | null>(null);
   
+  const [time, setTime] = useState("00:00:00");
+  const [sortConfig, setSortConfig] = useState<{ key: 'risk' | 'location', direction: 'asc' | 'desc' }>({ key: 'risk', direction: 'desc' });
+
+  useEffect(() => {
+    const updateTime = () => setTime(new Date().toISOString().substr(11, 8));
+    updateTime();
+    const int = setInterval(updateTime, 1000);
+    return () => clearInterval(int);
+  }, []);
+
   // Dynamic Global Severity
   const isCritical = junctions.some(j => j.status === 'emergency');
   const isWarning = junctions.some(j => j.status === 'warning');
@@ -31,6 +42,44 @@ export default function Dashboard() {
   const severityText = greenSweepActive 
     ? "GREEN SWEEP ACTIVE" 
     : globalSeverity;
+
+  const stableCount = junctions.filter(j => j.status !== 'emergency' && j.status !== 'warning').length;
+  const warningCount = junctions.filter(j => j.status === 'warning').length;
+  const criticalCount = junctions.filter(j => j.status === 'emergency').length;
+
+  const PIE_DATA = [
+    { name: 'Optimal', value: stableCount, color: '#4F46E5' },
+    { name: 'Warning', value: warningCount, color: '#f97316' },
+    { name: 'Critical', value: criticalCount, color: '#ef4444' },
+  ].filter(d => d.value > 0);
+
+  const INTEGRITY_DATA = [
+    { time: '00:00', value: 99 }, { time: '04:00', value: 98.5 },
+    { time: '08:00', value: 95 }, { time: '12:00', value: 92 },
+    { time: '16:00', value: 88 }, { time: '20:00', value: 91 },
+    { time: '24:00', value: 98.4 },
+  ];
+
+  const ARTERY_DATA = [
+    { id: 'ART-4B', location: 'Sector 4', trend: 'down', risk: 72 },
+    { id: 'TUN-9', location: 'Midtown Tunnel', trend: 'stable', risk: 12 },
+    { id: 'BRG-1', location: 'North Bridge', trend: 'up', risk: 85 },
+    { id: 'ART-2A', location: 'Sector 2', trend: 'stable', risk: 4 },
+    { id: 'EXP-5', location: 'West Expressway', trend: 'down', risk: 45 },
+  ];
+
+  const sortedArteries = [...ARTERY_DATA].sort((a, b) => {
+    if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (key: 'risk' | 'location') => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+    }));
+  };
 
   const MOCK_LOGS = [
     { time: "10:42:01", level: "INFO", message: "Node J1 Density shift detected (0.3 -> 0.35)", color: "text-green-400" },
@@ -64,8 +113,9 @@ export default function Dashboard() {
                City Pulse: {severityText}
              </span>
            </div>
-           <div className="font-mono text-xs text-gray-500 tracking-wider">
-             UTC {new Date().toISOString().substr(11, 8)}
+           <div className="font-mono text-xs text-gray-500 tracking-wider flex flex-col items-end">
+             <span>LAST SYNCED</span>
+             <span className="text-[var(--color-text-main)] font-bold">UTC {time}</span>
            </div>
         </div>
 
@@ -80,44 +130,95 @@ export default function Dashboard() {
 
         {activeTab === "artery-health" && (
           <div className="absolute inset-0 pt-14 p-8 overflow-auto">
-            <h2 className="text-2xl font-extrabold tracking-tight mb-6">Artery Health</h2>
+            <h2 className="text-2xl font-extrabold tracking-tight mb-6 flex items-center justify-between">
+              Artery Health
+            </h2>
+            
+            {isCritical && (
+              <div className="mb-6 p-4 rounded bg-red-500/10 border border-red-500/50 text-red-500 font-bold flex items-center gap-3 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.2)]">
+                <ShieldAlert size={20} />
+                City Pulse CRITICAL due to Emergency Preemption Protocol
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-6">
-              <div className="p-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] relative overflow-hidden">
-                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 relative z-10">Infrastructure Integrity</div>
-                 <div className="text-5xl font-black text-[var(--color-accent-indigo)] relative z-10">98.4%</div>
-                 <div className="mt-4 h-2 bg-gray-100 rounded overflow-hidden relative z-10">
-                   <div className="w-[98.4%] h-full bg-[var(--color-accent-indigo)]" />
-                 </div>
-                 <div className="absolute bottom-0 right-0 left-0 h-16 flex items-end opacity-20 pointer-events-none">
-                   {[80, 85, 90, 88, 92, 95, 98].map((v, i) => (
-                     <div key={i} className="flex-1 bg-[var(--color-accent-indigo)] mx-[1px]" style={{ height: `${v}%` }} />
-                   ))}
+              <div className="p-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] relative overflow-hidden bg-[var(--color-surface-a)] flex flex-col">
+                 <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2 relative z-10">24H Infrastructure Integrity</div>
+                 <div className="text-5xl font-black text-[var(--color-accent-indigo)] relative z-10 mb-4">98.4%</div>
+                 <div className="flex-1 -ml-4 -mb-4 mt-2">
+                   <ResponsiveContainer width="100%" height={120}>
+                     <LineChart data={INTEGRITY_DATA}>
+                       <Line type="monotone" dataKey="value" stroke="var(--color-accent-indigo)" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                       <RechartsTooltip 
+                         contentStyle={{ backgroundColor: 'var(--color-surface-a)', border: '1px solid var(--color-border-subtle)', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold' }}
+                         itemStyle={{ color: 'var(--color-text-main)' }}
+                       />
+                     </LineChart>
+                   </ResponsiveContainer>
                  </div>
               </div>
-              <div className="p-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] relative overflow-hidden">
-                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 relative z-10">Active Sensor Nodes</div>
-                 <div className="text-5xl font-black text-gray-800 relative z-10">1,042</div>
-                 <div className="mt-4 text-xs font-bold text-green-500 relative z-10">+12 online in last hour</div>
-                 <div className="absolute bottom-0 right-0 left-0 h-16 flex items-end opacity-10 pointer-events-none">
-                   {[40, 50, 45, 60, 75, 80, 100].map((v, i) => (
-                     <div key={i} className="flex-1 bg-gray-800 mx-[1px]" style={{ height: `${v}%` }} />
-                   ))}
+              <div className="p-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] relative overflow-hidden bg-[var(--color-surface-a)]">
+                 <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2 relative z-10">Active Sensor Nodes</div>
+                 <div className="text-5xl font-black text-[var(--color-text-main)] relative z-10">{junctions.length}</div>
+                 <div className="h-32 mt-4 flex items-center">
+                   <ResponsiveContainer width="50%" height="100%">
+                     <PieChart>
+                       <Pie data={PIE_DATA} innerRadius={35} outerRadius={50} paddingAngle={5} dataKey="value" stroke="none">
+                         {PIE_DATA.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={entry.color} />
+                         ))}
+                       </Pie>
+                     </PieChart>
+                   </ResponsiveContainer>
+                   <div className="flex flex-col gap-2 w-1/2 justify-center pl-4">
+                     {PIE_DATA.map(d => (
+                       <div key={d.name} className="flex items-center justify-between text-xs font-bold">
+                         <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: d.color }} /> <span className="text-[var(--color-text-main)]">{d.name}</span></div>
+                         <span style={{ color: d.color }}>{d.value}</span>
+                       </div>
+                     ))}
+                   </div>
                  </div>
               </div>
             </div>
             
-            <div className="mt-6 p-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] bg-[var(--color-surface-a)]">
-               <h3 className="font-bold mb-2">AI Predictive Health Analysis</h3>
-               <div className="flex items-center justify-between py-3 border-b border-[var(--color-border-subtle)]">
-                 <span className="font-mono text-sm text-[var(--color-text-main)]">Artery 4B</span>
-                 <span className="text-sm text-[var(--color-text-muted)]">Likely to degrade in ~2h based on current load</span>
-                 <span className="text-xs font-bold text-orange-500">72% RISK</span>
+            <div className="mt-6 border border-[var(--color-border-subtle)] rounded shadow-[var(--shadow-weightless)] bg-[var(--color-surface-a)] overflow-hidden">
+               <div className="p-4 border-b border-[var(--color-border-subtle)]">
+                 <h3 className="font-bold">AI Predictive Health Analysis</h3>
                </div>
-               <div className="flex items-center justify-between py-3">
-                 <span className="font-mono text-sm text-[var(--color-text-main)]">Tunnel 9</span>
-                 <span className="text-sm text-[var(--color-text-muted)]">Structural load nominal, expected clear</span>
-                 <span className="text-xs font-bold text-green-500">12% RISK</span>
-               </div>
+               <table className="w-full text-left text-sm">
+                 <thead className="bg-[var(--color-canvas)] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
+                   <tr>
+                     <th className="p-4 font-bold tracking-widest uppercase text-[10px] cursor-pointer hover:text-[var(--color-text-main)] transition-colors" onClick={() => handleSort('location')}>
+                       Artery / Location {sortConfig.key === 'location' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                     </th>
+                     <th className="p-4 font-bold tracking-widest uppercase text-[10px]">Trend</th>
+                     <th className="p-4 font-bold tracking-widest uppercase text-[10px] text-right cursor-pointer hover:text-[var(--color-text-main)] transition-colors" onClick={() => handleSort('risk')}>
+                       Predicted Risk % {sortConfig.key === 'risk' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                     </th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {sortedArteries.map((a, i) => (
+                     <tr key={i} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-canvas)] transition-colors">
+                       <td className="p-4">
+                         <div className="font-bold text-[var(--color-text-main)]">{a.id}</div>
+                         <div className="text-xs text-[var(--color-text-muted)]">{a.location}</div>
+                       </td>
+                       <td className="p-4">
+                         {a.trend === 'up' && <span className="text-red-500 font-bold">↑</span>}
+                         {a.trend === 'down' && <span className="text-green-500 font-bold">↓</span>}
+                         {a.trend === 'stable' && <span className="text-[var(--color-text-muted)] font-bold">-</span>}
+                       </td>
+                       <td className="p-4 text-right">
+                         <span className={clsx("font-black", a.risk > 50 ? "text-red-500" : a.risk > 20 ? "text-orange-500" : "text-green-500")}>
+                           {a.risk}%
+                         </span>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
             </div>
           </div>
         )}
