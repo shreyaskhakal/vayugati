@@ -48,6 +48,10 @@ export function Slider({ onDrag }: Props) {
         style={{ x, left: 0 }}
         className="absolute top-0 bottom-0 w-1 bg-[var(--color-accent-indigo)] cursor-ew-resize pointer-events-auto flex items-center justify-center -ml-[2px]"
       >
+        <div className="absolute top-1/4 -right-0 translate-x-full bg-[var(--color-surface-a)]/95 backdrop-blur-md px-3 py-1.5 rounded-r border-y border-r border-[var(--color-accent-indigo)]/30 text-[10px] font-bold text-[var(--color-text-main)] whitespace-nowrap shadow-[var(--shadow-weightless)] tracking-widest flex items-center gap-2 pointer-events-none">
+          <span className="w-2 h-2 rounded-full bg-[var(--color-accent-indigo)] animate-pulse" />
+          AI PREDICTION BOUNDARY (T+5MIN)
+        </div>
         <div className="w-8 h-8 bg-[var(--color-accent-indigo)] text-white rounded-full flex items-center justify-center shadow-[var(--shadow-indigo-glow)]">
           <ArrowLeftRight size={16} />
         </div>

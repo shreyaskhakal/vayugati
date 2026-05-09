@@ -58,7 +58,20 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div className="p-6">
+      <div className="p-6 flex flex-col gap-2 border-t border-[var(--color-border-subtle)] mt-auto bg-[var(--color-surface-a)]">
+        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Pulse Legend</div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--color-accent-indigo)] shadow-[var(--shadow-indigo-glow)]" /> Optimal Flow
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
+          <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]" /> Warning / Congestion
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
+          <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse" /> Critical / Emergency
+        </div>
+      </div>
+
+      <div className="p-6 pt-2">
         <button
           onClick={() => setGreenSweepActive(!greenSweepActive)}
           className={clsx(

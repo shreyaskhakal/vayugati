@@ -4,7 +4,8 @@ import { GoogleMap, useJsApiLoader, OverlayView } from '@react-google-maps/api';
 import { useStore } from '@/store/useStore';
 import { useCallback, useState, useEffect } from 'react';
 import clsx from 'clsx';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from 'next-themes';
 
 const containerStyle = {
   width: '100%',
@@ -39,6 +40,30 @@ const silverMapStyle = [
   { featureType: "water", elementType: "labels.text", stylers: [{ visibility: "off" }] },
 ];
 
+const darkMapStyle = [
+  { elementType: "geometry", stylers: [{ color: "#212121" }] },
+  { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#757575" }, { visibility: "off" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }, { visibility: "off" }] },
+  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#757575" }] },
+  { featureType: "administrative.country", elementType: "labels.text.fill", stylers: [{ color: "#9e9e9e" }] },
+  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#bdbdbd" }] },
+  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#181818" }] },
+  { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+  { featureType: "poi.park", elementType: "labels.text.stroke", stylers: [{ color: "#1b1b1b" }] },
+  { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#8a8a8a" }] },
+  { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#373737" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3c3c3c" }] },
+  { featureType: "road.highway.controlled_access", elementType: "geometry", stylers: [{ color: "#4e4e4e" }] },
+  { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+  { featureType: "transit", elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] }
+];
+
 interface Props {
   sliderPercentage: number;
 }
@@ -51,6 +76,8 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapCenter, setMapCenter] = useState(center);
+  const [hoveredJunctionId, setHoveredJunctionId] = useState<string | null>(null);
+  const { theme } = useTheme();
   const { junctions, setActiveJunctionId, activeJunctionId, relocateJunctions } = useStore();
 
   useEffect(() => {
@@ -101,6 +128,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         zoom={13}
         onLoad={onLoad}
         onUnmount={onUnmount}
+        options={{ styles: theme === 'dark' ? darkMapStyle : [] }}
       >
         {/* LIVE LAYER */}
         {junctions.map((j) => (
@@ -117,14 +145,16 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
                   map.setZoom(16);
                 }
               }}
+              onMouseEnter={() => setHoveredJunctionId(j.id)}
+              onMouseLeave={() => setHoveredJunctionId(null)}
               className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10 w-12 h-12 flex items-center justify-center"
             >
               {/* Heat Pulse Marker */}
               <motion.div
                 animate={{
                   boxShadow: [
-                    `0 0 0 0px ${j.status === 'emergency' ? 'rgba(239,68,68,0.7)' : j.status === 'warning' ? 'rgba(249,115,22,0.7)' : 'rgba(79,70,229,0.7)'}`, 
-                    `0 0 0 30px rgba(79,70,229,0)`
+                    `0 0 0 0px ${j.status === 'emergency' ? 'rgba(239,68,68,0.9)' : j.status === 'warning' ? 'rgba(249,115,22,0.7)' : 'rgba(79,70,229,0.7)'}`, 
+                    `0 0 0 ${j.status === 'emergency' ? '50px' : '30px'} rgba(79,70,229,0)`
                   ]
                 }}
                 transition={{
@@ -133,11 +163,38 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
                   ease: "easeOut"
                 }}
                 className={clsx(
-                  "w-4 h-4 rounded-full",
-                  j.status === 'emergency' ? 'bg-red-500' : j.status === 'warning' ? 'bg-orange-500' : 'bg-[var(--color-accent-indigo)]',
+                  "w-5 h-5 rounded-full shadow-lg",
+                  j.status === 'emergency' ? 'bg-red-500 shadow-red-500' : j.status === 'warning' ? 'bg-orange-500 shadow-orange-500' : 'bg-[var(--color-accent-indigo)] shadow-[var(--color-accent-indigo)]',
                   activeJunctionId === j.id && "ring-4 ring-[var(--color-canvas)]"
                 )}
               />
+
+              {/* Hover Tooltip */}
+              <AnimatePresence>
+                {hoveredJunctionId === j.id && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="absolute top-12 whitespace-nowrap bg-[var(--color-surface-a)] backdrop-blur-md shadow-[var(--shadow-weightless)] border border-[var(--color-border-subtle)] rounded-lg p-3 z-50 pointer-events-none"
+                  >
+                    <div className="font-mono text-xs font-bold mb-2 flex items-center gap-2 text-[var(--color-text-main)]">
+                       <span className={clsx("w-2 h-2 rounded-full", j.status === 'emergency' ? 'bg-red-500' : j.status === 'warning' ? 'bg-orange-500' : 'bg-green-500')} />
+                       NODE: {j.id}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+                      <span>Status</span>
+                      <span className={clsx("font-bold text-right", j.status === 'emergency' ? 'text-red-500' : j.status === 'warning' ? 'text-orange-500' : 'text-green-500')}>
+                        {j.status.toUpperCase()}
+                      </span>
+                      <span>Load Level</span>
+                      <span className="font-bold text-right text-[var(--color-text-main)]">{Math.round(j.density * 100)}%</span>
+                      <span>Last Updated</span>
+                      <span className="font-bold text-right text-[var(--color-text-main)]">UTC {new Date().toISOString().substr(11, 8)}</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </OverlayView>
         ))}
@@ -157,20 +214,6 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         {isLoaded && map && junctions.map((j) => {
           return null;
         })}
-      </div>
-
-      {/* Mini-Legend */}
-      <div className="absolute bottom-6 right-6 bg-[var(--color-surface-a)]/90 backdrop-blur-md shadow-[var(--shadow-weightless)] px-4 py-3 rounded-lg border border-[var(--color-border-subtle)] flex flex-col gap-2 z-10">
-        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Pulse Legend</div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--color-accent-indigo)] shadow-[var(--shadow-indigo-glow)]" /> Optimal Flow
-        </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
-          <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.6)]" /> Warning / Congestion
-        </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-main)]">
-          <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse" /> Critical / Emergency
-        </div>
       </div>
     </div>
   );
