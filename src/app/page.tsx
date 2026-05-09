@@ -9,8 +9,9 @@ import { useState } from "react";
 import clsx from "clsx";
 
 export default function Dashboard() {
-  const { activeTab, greenSweepActive, activeJunctionId, junctions } = useStore();
+  const { activeTab, greenSweepActive, activeJunctionId, junctions, updateJunction, setActiveTab } = useStore();
   const [sliderPercentage, setSliderPercentage] = useState(50);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   const activeJunction = junctions.find((j) => j.id === activeJunctionId);
 
@@ -110,8 +111,25 @@ export default function Dashboard() {
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Weather Impact Index</label>
                   <input type="range" className="w-full accent-[var(--color-accent-indigo)]" />
                 </div>
-                <button className="bg-[var(--color-accent-indigo)] text-white font-bold text-sm py-3 rounded shadow-[var(--shadow-indigo-glow)] mt-4">
-                  Run Prediction Model
+                <button 
+                  disabled={isSimulating}
+                  onClick={() => {
+                    setIsSimulating(true);
+                    setTimeout(() => {
+                      updateJunction('J1', { density: 0.9, status: 'warning', throughput: 2800 });
+                      updateJunction('J2', { density: 0.95, status: 'emergency', throughput: 450 });
+                      setIsSimulating(false);
+                      setActiveTab('pulse-map');
+                    }, 2000);
+                  }}
+                  className={clsx(
+                    "text-white font-bold text-sm py-3 rounded mt-4 transition-all",
+                    isSimulating 
+                      ? "bg-gray-400 cursor-not-allowed" 
+                      : "bg-[var(--color-accent-indigo)] shadow-[var(--shadow-indigo-glow)] hover:bg-indigo-500"
+                  )}
+                >
+                  {isSimulating ? "Running AI Analysis (Gemini 1.5 Flash)..." : "Run Prediction Model"}
                 </button>
               </div>
             </div>
