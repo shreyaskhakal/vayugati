@@ -19,7 +19,12 @@ export default function Dashboard() {
   // Simulation state
   const [trafficMod, setTrafficMod] = useState(0);
   const [weatherIndex, setWeatherIndex] = useState(5);
-  const [simResults, setSimResults] = useState<null | { congestion: number; arteries: string[]; etaImpact: string; savedAt: string }>(null);
+  const [simResults, setSimResults] = useState<null | { congestion: number; arteries: string[]; etaImpact: string; savedAt: string }>({
+    congestion: 60,
+    arteries: ['ART-4B', 'BRG-1'],
+    etaImpact: '+14 min avg',
+    savedAt: new Date().toISOString(),
+  });
   const [savedSims, setSavedSims] = useState<Array<{ id: string; name: string; congestion: number; savedAt: string }>>([]);
   const [compareToLive, setCompareToLive] = useState(false);
 
@@ -663,12 +668,14 @@ export default function Dashboard() {
                   key={idx}
                   className={clsx(
                     "px-3 py-1.5 rounded-sm flex items-start gap-3 leading-relaxed",
-                    log.level === 'CRIT'
-                      ? "border-l-2 border-red-500 bg-red-500/5 font-bold"
-                      : log.level === 'WARN'
-                      ? "border-l-2 border-orange-500/50"
-                      : "border-l-2 border-transparent"
+                    log.level === 'CRIT' ? "bg-red-500/10 font-bold" :
+                    log.level === 'WARN' ? "" : ""
                   )}
+                  style={{
+                    borderLeft: log.level === 'CRIT' ? '3px solid #ef4444' :
+                                log.level === 'WARN' ? '3px solid rgba(249,115,22,0.6)' :
+                                '3px solid transparent'
+                  }}
                 >
                   <span className="text-gray-600 shrink-0 tabular-nums">[{log.time}]</span>
                   <span className={clsx(
