@@ -70,10 +70,6 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         zoom={13}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{
-          styles: silverMapStyle,
-          disableDefaultUI: true,
-        }}
       >
         {/* LIVE LAYER */}
         {junctions.map((j) => (
