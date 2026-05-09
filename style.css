@@ -204,6 +204,33 @@ body {
     overflow: hidden;
 }
 
+/* Section Navigation */
+.view-section {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.view-section.active {
+    display: block;
+}
+
+.placeholder-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-secondary);
+}
+
+.placeholder-content h2 {
+    color: var(--accent-1);
+    margin-bottom: 10px;
+    font-size: 24px;
+}
+
 /* Digital Twin Dual Pane */
 .digital-twin-container {
     position: absolute;
@@ -254,6 +281,12 @@ body {
     position: relative;
     width: 100%;
     height: 100%;
+    background-color: var(--canvas);
+    background-image: 
+        linear-gradient(to right, var(--road-color) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--road-color) 1px, transparent 1px);
+    background-size: 80px 80px;
+    background-position: center center;
 }
 
 .road-horizontal {

@@ -33,8 +33,35 @@ const dom = {
     statWaitTime: document.getElementById('statWaitTime'),
     statDensity: document.getElementById('statDensity'),
     
-    nodes: document.querySelectorAll('.junction-node.pulse-node')
+    nodes: document.querySelectorAll('.junction-node.pulse-node'),
+    navItems: document.querySelectorAll('.nav-item'),
+    viewSections: document.querySelectorAll('.view-section')
 };
+
+// ========== NAVIGATION ==========
+dom.navItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        // Remove active class from all nav items
+        dom.navItems.forEach(nav => nav.classList.remove('active'));
+        
+        // Add active class to clicked item
+        item.classList.add('active');
+        
+        // Hide all sections
+        dom.viewSections.forEach(section => section.classList.remove('active'));
+        
+        // Show target section
+        const targetId = item.getAttribute('data-target');
+        if (targetId) {
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+        }
+    });
+});
 
 // ========== SYSTEM CLOCK ==========
 function updateSystemTime() {
