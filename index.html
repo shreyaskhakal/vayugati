@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vayu-Gati | Kinetic Infrastructure Interface</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- ========== HEADER ========== -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo">[V-G]</div>
+            </div>
+            <div class="header-center">
+                <div class="global-status">
+                    <span class="status-indicator"></span>
+                    City Pulse: <span id="statusText">Stable</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="system-time" id="systemTime">00:00:00</div>
+                <div class="admin-profile">
+                    <div class="profile-avatar"><i class="fas fa-user"></i></div>
+                    <span class="admin-name">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="app-body">
+            <!-- ========== SIDEBAR ========== -->
+            <aside class="sidebar">
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active"><i class="fas fa-map-marked-alt"></i> Pulse Map</a>
+                    <a href="#" class="nav-item"><i class="fas fa-heartbeat"></i> Artery Health</a>
+                    <a href="#" class="nav-item"><i class="fas fa-wave-square"></i> Green Corridor</a>
+                    <a href="#" class="nav-item"><i class="fas fa-project-diagram"></i> Simulations</a>
+                    <a href="#" class="nav-item"><i class="fas fa-terminal"></i> System Logs</a>
+                </nav>
+                <div class="sidebar-bottom">
+                    <button id="greenSweepBtn" class="btn-green-sweep">
+                        <span class="btn-text">Green Sweep</span>
+                        <div class="liquid-fill"></div>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- ========== MAIN VIEWPORT ========== -->
+            <main class="main-viewport">
+                <!-- DIGITAL TWIN CONTAINER -->
+                <div class="digital-twin-container" id="digitalTwinContainer">
+                    
+                    <!-- LIVE ENVIRONMENT PANE -->
+                    <div class="map-pane live-pane" id="livePane">
+                        <div class="pane-label">Live Environment</div>
+                        <div class="map-grid">
+                            <!-- Background Grid Lines representing roads -->
+                            <div class="road-horizontal" style="top: 30%;"></div>
+                            <div class="road-horizontal" style="top: 70%;"></div>
+                            <div class="road-vertical" style="left: 30%;"></div>
+                            <div class="road-vertical" style="left: 70%;"></div>
+
+                            <!-- Live Nodes -->
+                            <div class="junction-node pulse-node" style="top: 30%; left: 30%;" data-id="J1"></div>
+                            <div class="junction-node pulse-node" style="top: 30%; left: 70%;" data-id="J2"></div>
+                            <div class="junction-node pulse-node" style="top: 70%; left: 30%;" data-id="J3"></div>
+                            <div class="junction-node pulse-node" style="top: 70%; left: 70%;" data-id="J4"></div>
+                        </div>
+                    </div>
+
+                    <!-- AI PREDICTED ENVIRONMENT PANE (Right Side via clip-path) -->
+                    <div class="map-pane predicted-pane" id="predictedPane">
+                        <div class="pane-label ai-label"><i class="fas fa-bolt"></i> AI Predicted (5m ahead)</div>
+                        <div class="map-grid">
+                            <!-- Background Grid Lines -->
+                            <div class="road-horizontal" style="top: 30%;"></div>
+                            <div class="road-horizontal" style="top: 70%;"></div>
+                            <div class="road-vertical" style="left: 30%;"></div>
+                            <div class="road-vertical" style="left: 70%;"></div>
+
+                            <!-- Predicted Nodes -->
+                            <div class="junction-node predicted-node" style="top: 30%; left: 30%;" data-id="P1"></div>
+                            <div class="junction-node predicted-node" style="top: 30%; left: 70%;" data-id="P2"></div>
+                            <div class="junction-node predicted-node" style="top: 70%; left: 30%;" data-id="P3"></div>
+                            <div class="junction-node predicted-node" style="top: 70%; left: 70%;" data-id="P4"></div>
+                        </div>
+                    </div>
+
+                    <!-- SLIDER -->
+                    <div class="twin-slider" id="twinSlider">
+                        <div class="slider-handle">
+                            <i class="fas fa-arrows-alt-h"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JUNCTION CARD OVERLAY (Hidden by default) -->
+                <div class="junction-card" id="junctionCard">
+                    <div class="card-header">
+                        <h3 id="cardTitle">Junction Alpha</h3>
+                        <span class="state-badge" id="cardStateBadge">Idle</span>
+                        <button class="close-card-btn" id="closeCardBtn"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <div class="card-video-container">
+                        <div class="shimmer-overlay" id="videoShimmer"></div>
+                        <!-- Placeholder for Gemini 1.5 Flash video overlay -->
+                        <div class="video-placeholder">
+                            <i class="fas fa-video"></i>
+                            <span>Camera Feed Active</span>
+                        </div>
+                    </div>
+
+                    <div class="card-stats">
+                        <div class="stat-box">
+                            <span class="stat-label">Throughput</span>
+                            <span class="stat-value" id="statThroughput">1,200/h</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Wait Time</span>
+                            <span class="stat-value" id="statWaitTime">14s</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Density</span>
+                            <span class="stat-value" id="statDensity">Low</span>
+                        </div>
+                    </div>
+                    
+                    <div class="card-emergency-alert" id="cardEmergencyAlert" style="display: none;">
+                        <i class="fas fa-exclamation-triangle"></i> Bypass Active
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <!-- Ripple overlay for Green Sweep -->
+        <div class="ripple-overlay" id="rippleOverlay"></div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,520 @@
+/* ========== DESIGN TOKENS ========== */
+:root {
+    --canvas: #FFFFFF;
+    --surface-a: #F5F5F7;
+    --accent-1: #4F46E5; /* Electric Indigo */
+    --accent-2: #000000;
+    --radius: 4px;
+    --shadow: 0 10px 40px rgba(0,0,0,0.03);
+    --border: 1px solid rgba(0, 0, 0, 0.05);
+    
+    /* Semantic Colors */
+    --emergency: #3B82F6;
+    --road-color: #E5E7EB;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+}
+
+/* ========== RESET & BASE ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--canvas);
+    color: var(--text-primary);
+    overflow: hidden; /* Prevent scrolling, full screen app */
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ========== LAYOUT STRUCTURE ========== */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+}
+
+/* Header */
+.app-header {
+    height: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    border-bottom: 0.5px solid var(--road-color);
+    background-color: var(--canvas);
+    z-index: 100;
+}
+
+.header-left .logo {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--accent-2);
+}
+
+.header-center {
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--accent-1);
+    box-shadow: 0 0 8px var(--accent-1);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.admin-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--surface-a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
+/* Body */
+.app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    background-color: var(--surface-a);
+    border-right: var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    z-index: 90;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    gap: 8px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius);
+    transition: all 0.2s ease;
+}
+
+.nav-item:hover, .nav-item.active {
+    background-color: var(--canvas);
+    color: var(--accent-1);
+    box-shadow: var(--shadow);
+}
+
+/* Green Sweep Button */
+.sidebar-bottom {
+    padding: 24px 16px;
+}
+
+.btn-green-sweep {
+    position: relative;
+    width: 100%;
+    padding: 14px;
+    border: 1px solid rgba(79, 70, 229, 0.2);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    color: var(--accent-1);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.05);
+}
+
+.btn-green-sweep:hover {
+    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+    border-color: var(--accent-1);
+}
+
+.btn-green-sweep .btn-text {
+    position: relative;
+    z-index: 2;
+}
+
+.liquid-fill {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--accent-1);
+    z-index: 1;
+    transition: top 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-green-sweep:hover .liquid-fill {
+    top: 0;
+}
+
+.btn-green-sweep:hover .btn-text {
+    color: #fff;
+}
+
+/* Main Viewport (The Map) */
+.main-viewport {
+    flex: 1;
+    position: relative;
+    background-color: var(--canvas);
+    overflow: hidden;
+}
+
+/* Digital Twin Dual Pane */
+.digital-twin-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+}
+
+.map-pane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.predicted-pane {
+    clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+    background-color: rgba(245, 245, 247, 0.5); /* Slight tint for AI view */
+}
+
+.pane-label {
+    position: absolute;
+    top: 24px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    background-color: var(--canvas);
+    box-shadow: var(--shadow);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    z-index: 10;
+}
+
+.live-pane .pane-label {
+    left: 24px;
+}
+
+.predicted-pane .pane-label {
+    right: 24px;
+    color: var(--accent-1);
+}
+
+/* Map Elements */
+.map-grid {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.road-horizontal {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background-color: var(--road-color);
+}
+
+.road-vertical {
+    position: absolute;
+    height: 100%;
+    width: 2px;
+    background-color: var(--road-color);
+}
+
+/* Nodes */
+.junction-node {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pulse-node {
+    background-color: var(--accent-1);
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
+    animation: biological-pulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+.pulse-node:hover {
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+.predicted-node {
+    background-color: transparent;
+    border: 2px dashed var(--accent-1);
+}
+
+@keyframes biological-pulse {
+    to {
+        box-shadow: 0 0 0 30px rgba(79, 70, 229, 0);
+    }
+}
+
+/* Slider */
+.twin-slider {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 4px;
+    height: 100%;
+    background-color: var(--accent-1);
+    transform: translateX(-50%);
+    cursor: ew-resize;
+    z-index: 20;
+}
+
+.slider-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--accent-1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4);
+}
+
+/* ========== JUNCTION CARD ========== */
+.junction-card {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    width: 340px;
+    background: var(--canvas);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+}
+
+.junction-card.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+}
+
+/* Card States */
+.junction-card.state-processing .shimmer-overlay {
+    display: block;
+}
+
+.junction-card.state-emergency {
+    border: 1px solid var(--emergency);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.junction-card.state-emergency .card-emergency-alert {
+    display: flex;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: var(--border);
+}
+
+.card-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.state-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background-color: var(--surface-a);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.close-card-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* Video Section */
+.card-video-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: var(--accent-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.video-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+}
+
+.video-placeholder i {
+    font-size: 24px;
+}
+
+.shimmer-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+    display: none;
+    z-index: 5;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Stats Grid */
+.card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background-color: var(--road-color);
+}
+
+.stat-box {
+    background-color: var(--canvas);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Emergency Alert */
+.card-emergency-alert {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: var(--emergency);
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* Ripple Overlay */
+.ripple-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(79, 70, 229, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 200;
+    opacity: 0;
+}
+
+.ripple-active {
+    animation: rippleEffect 1.5s ease-out;
+}
+
+@keyframes rippleEffect {
+    0% {
+        width: 0;
+        height: 0;
+        opacity: 1;
+    }
+    100% {
+        width: 300vw;
+        height: 300vw;
+        opacity: 0;
+    }
+}
