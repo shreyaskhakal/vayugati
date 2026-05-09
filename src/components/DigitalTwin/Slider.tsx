@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useMotionValue } from "framer-motion";
+import { motion, useMotionValue, useMotionValueEvent } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 
@@ -30,24 +30,22 @@ export function Slider({ onDrag }: Props) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    return x.on("change", (latestX) => {
-      if (containerWidth > 0) {
-        let percentage = (latestX / containerWidth) * 100;
-        percentage = Math.max(0, Math.min(100, Math.round(percentage)));
-        onDrag(percentage);
-      }
-    });
-  }, [x, containerWidth, onDrag]);
+  useMotionValueEvent(x, "change", (latestX) => {
+    if (containerWidth > 0) {
+      let percentage = (latestX / containerWidth) * 100;
+      percentage = Math.max(0, Math.min(100, Math.round(percentage)));
+      onDrag(percentage);
+    }
+  });
 
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
       <motion.div
         drag="x"
-        dragConstraints={containerRef}
+        dragConstraints={{ left: 0, right: containerWidth }}
         dragElastic={0}
         dragMomentum={false}
-        style={{ x }}
+        style={{ x, left: 0 }}
         className="absolute top-0 bottom-0 w-1 bg-[var(--color-accent-indigo)] cursor-ew-resize pointer-events-auto flex items-center justify-center -ml-[2px]"
       >
         <div className="w-8 h-8 bg-[var(--color-accent-indigo)] text-white rounded-full flex items-center justify-center shadow-[var(--shadow-indigo-glow)]">
