@@ -15,6 +15,13 @@ export default function Dashboard() {
   const [sliderPercentage, setSliderPercentage] = useState(50);
   const [isSimulating, setIsSimulating] = useState(false);
 
+  // Simulation state
+  const [trafficMod, setTrafficMod] = useState(0);
+  const [weatherIndex, setWeatherIndex] = useState(5);
+  const [simResults, setSimResults] = useState<null | { congestion: number; arteries: string[]; etaImpact: string; savedAt: string }>(null);
+  const [savedSims, setSavedSims] = useState<Array<{ id: string; name: string; congestion: number; savedAt: string }>>([]);
+  const [compareToLive, setCompareToLive] = useState(false);
+
   const activeJunction = junctions.find((j) => j.id === activeJunctionId);
 
   const [logSearch, setLogSearch] = useState("");
@@ -269,58 +276,224 @@ export default function Dashboard() {
 
         {activeTab === "simulations" && (
           <div className="absolute inset-0 pt-14 p-8 overflow-auto">
-            <h2 className="text-2xl font-extrabold tracking-tight mb-6">Simulations & "What-If" Models</h2>
-            <div className="grid grid-cols-2 gap-8">
-              <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-white shadow-[var(--shadow-weightless)] flex flex-col gap-6">
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Traffic Volume Modifier (+/- %)</label>
-                  <input type="range" className="w-full accent-[var(--color-accent-indigo)]" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">Weather Impact Index</label>
-                  <input type="range" className="w-full accent-[var(--color-accent-indigo)]" />
-                </div>
-                <button 
-                  disabled={isSimulating}
-                  onClick={() => {
-                    setIsSimulating(true);
-                    setTimeout(() => {
-                      updateJunction('J1', { density: 0.9, status: 'warning', throughput: 2800 });
-                      updateJunction('J2', { density: 0.95, status: 'emergency', throughput: 450 });
-                      setIsSimulating(false);
-                      setActiveTab('pulse-map');
-                    }, 2000);
-                  }}
-                  className={clsx(
-                    "text-white font-bold text-sm py-3 rounded mt-4 transition-all",
-                    isSimulating 
-                      ? "bg-gray-400 cursor-not-allowed" 
-                      : "bg-[var(--color-accent-indigo)] shadow-[var(--shadow-indigo-glow)] hover:bg-indigo-500"
-                  )}
-                >
-                  {isSimulating ? "Running AI Analysis (Gemini 1.5 Flash)..." : "Run Prediction Model"}
-                </button>
+            <h2 className="text-2xl font-extrabold tracking-tight mb-6">Simulations &amp; "What-If" Models</h2>
+
+            {/* Compare to Live Banner */}
+            {compareToLive && (
+              <div className="mb-6 p-4 rounded border border-[var(--color-accent-indigo)]/30 bg-[var(--color-accent-indigo)]/5 flex items-center justify-between">
+                <div className="text-xs font-bold text-[var(--color-accent-indigo)] uppercase tracking-widest">Compare to Live Mode Active — Showing Simulation vs Current Reality</div>
+                <button onClick={() => setCompareToLive(false)} className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors">✕ Exit</button>
               </div>
-              
+            )}
+
+            <div className="grid grid-cols-2 gap-8">
+              {/* Left: Controls */}
+              <div className="flex flex-col gap-6">
+                <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] flex flex-col gap-6">
+                  <h3 className="font-bold text-base">Manual Parameter Tuning</h3>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest">Traffic Volume Modifier</label>
+                      <span className={clsx("text-sm font-black tabular-nums", trafficMod > 0 ? 'text-orange-500' : trafficMod < 0 ? 'text-green-500' : 'text-[var(--color-text-muted)]')}>
+                        Traffic: {trafficMod > 0 ? '+' : ''}{trafficMod}%
+                      </span>
+                    </div>
+                    <input
+                      type="range" min={-50} max={100} value={trafficMod}
+                      onChange={e => setTrafficMod(Number(e.target.value))}
+                      className="w-full accent-[var(--color-accent-indigo)]"
+                    />
+                    <div className="flex justify-between text-[10px] text-[var(--color-text-muted)] mt-1">
+                      <span>-50%</span><span>0</span><span>+100%</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest">Weather Impact Index</label>
+                      <span className={clsx("text-sm font-black tabular-nums", weatherIndex >= 7 ? 'text-red-500' : weatherIndex >= 4 ? 'text-orange-500' : 'text-green-500')}>
+                        Weather: {weatherIndex.toFixed(1)}/10
+                      </span>
+                    </div>
+                    <input
+                      type="range" min={0} max={10} step={0.1} value={weatherIndex}
+                      onChange={e => setWeatherIndex(Number(e.target.value))}
+                      className="w-full accent-[var(--color-accent-indigo)]"
+                    />
+                    <div className="flex justify-between text-[10px] text-[var(--color-text-muted)] mt-1">
+                      <span>Clear</span><span>Moderate</span><span>Severe</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      disabled={isSimulating}
+                      onClick={() => {
+                        setIsSimulating(true);
+                        setTimeout(() => {
+                          const congestion = Math.min(99, Math.round(45 + trafficMod * 0.4 + weatherIndex * 3));
+                          const affected = ['ART-4B', 'BRG-1'];
+                          if (trafficMod > 30) affected.push('EXP-5');
+                          if (weatherIndex > 6) affected.push('TUN-9');
+                          const etaMin = Math.round(8 + trafficMod * 0.15 + weatherIndex * 1.2);
+                          setSimResults({ congestion, arteries: affected, etaImpact: `+${etaMin} min avg`, savedAt: new Date().toISOString() });
+                          updateJunction('J1', { density: Math.min(1, 0.4 + trafficMod / 100), status: trafficMod > 40 ? 'emergency' : trafficMod > 10 ? 'warning' : 'optimal', throughput: 3000 });
+                          updateJunction('J2', { density: Math.min(1, 0.3 + weatherIndex / 10), status: weatherIndex > 7 ? 'emergency' : weatherIndex > 4 ? 'warning' : 'optimal', throughput: 2000 });
+                          setIsSimulating(false);
+                        }, 2000);
+                      }}
+                      className={clsx(
+                        "flex-1 text-white font-bold text-sm py-3 rounded transition-all",
+                        isSimulating ? "bg-gray-400 cursor-not-allowed" : "bg-[var(--color-accent-indigo)] shadow-[var(--shadow-indigo-glow)] hover:bg-indigo-500"
+                      )}
+                    >
+                      {isSimulating ? "Running AI Model..." : "▶ Run Prediction"}
+                    </button>
+                    <button
+                      onClick={() => setCompareToLive(!compareToLive)}
+                      className={clsx(
+                        "px-4 py-3 rounded text-sm font-bold border transition-all",
+                        compareToLive
+                          ? "bg-[var(--color-accent-indigo)] text-white border-[var(--color-accent-indigo)]"
+                          : "border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-accent-indigo)] hover:text-[var(--color-accent-indigo)]"
+                      )}
+                    >
+                      ⇄ vs Live
+                    </button>
+                  </div>
+                </div>
+
+                {/* Results Panel */}
+                {simResults && (
+                  <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-base">Simulation Results</h3>
+                      <button
+                        onClick={() => {
+                          setSavedSims(prev => [...prev, {
+                            id: Date.now().toString(),
+                            name: `Run at ${new Date().toLocaleTimeString()}`,
+                            congestion: simResults.congestion,
+                            savedAt: simResults.savedAt,
+                          }]);
+                        }}
+                        className="text-xs font-bold px-3 py-1.5 rounded border border-[var(--color-accent-indigo)] text-[var(--color-accent-indigo)] hover:bg-[var(--color-accent-indigo)] hover:text-white transition-all"
+                      >
+                        💾 Save Simulation
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
+                        <div className={clsx("text-3xl font-black", simResults.congestion > 70 ? 'text-red-500' : simResults.congestion > 40 ? 'text-orange-500' : 'text-green-500')}>
+                          {simResults.congestion}%
+                        </div>
+                        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">Predicted Congestion</div>
+                      </div>
+                      <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
+                        <div className="text-3xl font-black text-orange-500">{simResults.arteries.length}</div>
+                        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">Arteries Affected</div>
+                      </div>
+                      <div className="flex flex-col items-center p-4 rounded bg-[var(--color-canvas)] border border-[var(--color-border-subtle)]">
+                        <div className="text-3xl font-black text-red-500">{simResults.etaImpact}</div>
+                        <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase mt-1 text-center">ETA Impact</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-[var(--color-text-muted)]">
+                      <span className="font-bold text-[var(--color-text-main)]">Affected Arteries: </span>
+                      {simResults.arteries.join(', ')}
+                    </div>
+                    {compareToLive && (
+                      <div className="p-3 rounded bg-[var(--color-accent-indigo)]/5 border border-[var(--color-accent-indigo)]/20 text-xs">
+                        <div className="font-bold text-[var(--color-accent-indigo)] mb-1">Live vs Simulation</div>
+                        <div className="grid grid-cols-2 gap-2 text-[var(--color-text-muted)]">
+                          <span>Live Congestion: <strong className="text-[var(--color-text-main)]">~42%</strong></span>
+                          <span>Sim Congestion: <strong className={simResults.congestion > 70 ? 'text-red-500' : 'text-orange-500'}>{simResults.congestion}%</strong></span>
+                          <span>Live ETA: <strong className="text-[var(--color-text-main)]">Normal</strong></span>
+                          <span>Sim ETA: <strong className="text-orange-500">{simResults.etaImpact}</strong></span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Saved Simulations */}
+                {savedSims.length > 0 && (
+                  <div className="p-6 border border-[var(--color-border-subtle)] rounded bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
+                    <h3 className="font-bold text-sm mb-3">Saved Simulations</h3>
+                    {savedSims.map(s => (
+                      <div key={s.id} className="flex items-center justify-between py-2 border-b border-[var(--color-border-subtle)] last:border-0">
+                        <div>
+                          <div className="text-xs font-bold text-[var(--color-text-main)]">{s.name}</div>
+                          <div className="text-[10px] text-[var(--color-text-muted)]">Congestion: {s.congestion}%</div>
+                        </div>
+                        <span className={clsx("text-xs font-black", s.congestion > 70 ? 'text-red-500' : s.congestion > 40 ? 'text-orange-500' : 'text-green-500')}>{s.congestion}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Presets */}
               <div className="flex flex-col gap-4">
-                <h3 className="font-bold text-lg">Preset Simulation Scenarios</h3>
-                <button className="p-4 border border-[var(--color-border-subtle)] rounded text-left hover:bg-[var(--color-surface-a)] transition-colors" onClick={() => {
-                  updateJunction('J1', { density: 0.9, status: 'warning', throughput: 2800 });
-                  updateJunction('J2', { density: 0.95, status: 'emergency', throughput: 450 });
-                  updateJunction('J3', { density: 0.85, status: 'warning', throughput: 1100 });
-                  setActiveTab('pulse-map');
-                }}>
-                  <div className="font-bold">Rush Hour Gridlock</div>
-                  <div className="text-sm text-[var(--color-text-muted)]">Simulates 5PM Friday traffic density load across all central arteries.</div>
-                </button>
-                <button className="p-4 border border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-900/10 rounded text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" onClick={() => {
-                  updateJunction('J3', { density: 1.0, status: 'emergency', throughput: 0 });
-                  updateJunction('J4', { density: 0.9, status: 'warning', throughput: 500 });
-                  setActiveTab('pulse-map');
-                }}>
-                  <div className="font-bold text-blue-700 dark:text-blue-400">Flood Event</div>
-                  <div className="text-sm text-[var(--color-text-muted)]">Simulates severe waterlogging at Junction 3, routing traffic to J4.</div>
-                </button>
+                <h3 className="font-bold text-base">Preset Simulation Scenarios</h3>
+                {[
+                  {
+                    label: 'Rush Hour Gridlock', color: 'orange',
+                    desc: 'Simulates 5PM Friday traffic density across all central arteries.',
+                    action: () => { setTrafficMod(75); setWeatherIndex(3); updateJunction('J1', { density: 0.9, status: 'warning', throughput: 2800 }); updateJunction('J2', { density: 0.95, status: 'emergency', throughput: 450 }); updateJunction('J3', { density: 0.85, status: 'warning', throughput: 1100 }); }
+                  },
+                  {
+                    label: 'Flood Event', color: 'blue',
+                    desc: 'Severe waterlogging at Junction 3, rerouting traffic to J4.',
+                    action: () => { setTrafficMod(20); setWeatherIndex(9.5); updateJunction('J3', { density: 1.0, status: 'emergency', throughput: 0 }); updateJunction('J4', { density: 0.9, status: 'warning', throughput: 500 }); }
+                  },
+                  {
+                    label: 'Major Event', color: 'purple',
+                    desc: 'Stadium event causing 80k+ attendee surge in Zone 2 + Zone 5.',
+                    action: () => { setTrafficMod(90); setWeatherIndex(2); updateJunction('J2', { density: 0.98, status: 'emergency', throughput: 200 }); updateJunction('J4', { density: 0.88, status: 'warning', throughput: 900 }); }
+                  },
+                  {
+                    label: 'Power Outage', color: 'yellow',
+                    desc: 'Grid failure at Sector 4 disabling signals across 6 intersections.',
+                    action: () => { setTrafficMod(50); setWeatherIndex(4); updateJunction('J1', { density: 0.85, status: 'warning', throughput: 600 }); updateJunction('J4', { density: 0.95, status: 'emergency', throughput: 0 }); }
+                  },
+                  {
+                    label: 'Infrastructure Failure', color: 'red',
+                    desc: 'Critical bridge structural failure. All lanes on BRG-1 closed.',
+                    action: () => { setTrafficMod(60); setWeatherIndex(5); updateJunction('J3', { density: 1.0, status: 'emergency', throughput: 0 }); updateJunction('J1', { density: 0.92, status: 'emergency', throughput: 300 }); }
+                  },
+                  {
+                    label: 'Heavy Rain', color: 'cyan',
+                    desc: 'Sustained rainfall reducing visibility and road traction citywide.',
+                    action: () => { setTrafficMod(30); setWeatherIndex(8.5); updateJunction('J2', { density: 0.75, status: 'warning', throughput: 1500 }); updateJunction('J3', { density: 0.80, status: 'warning', throughput: 1200 }); }
+                  },
+                ].map(preset => (
+                  <button
+                    key={preset.label}
+                    onClick={() => { preset.action(); setActiveTab('pulse-map'); }}
+                    className={clsx(
+                      "p-4 border rounded text-left transition-all hover:shadow-[var(--shadow-weightless)]",
+                      preset.color === 'orange' && 'border-orange-200 bg-orange-50/50 dark:border-orange-900/30 dark:bg-orange-900/10 hover:bg-orange-50 dark:hover:bg-orange-900/20',
+                      preset.color === 'blue' && 'border-blue-200 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+                      preset.color === 'purple' && 'border-purple-200 bg-purple-50/50 dark:border-purple-900/30 dark:bg-purple-900/10 hover:bg-purple-50 dark:hover:bg-purple-900/20',
+                      preset.color === 'yellow' && 'border-yellow-200 bg-yellow-50/50 dark:border-yellow-900/30 dark:bg-yellow-900/10 hover:bg-yellow-50 dark:hover:bg-yellow-900/20',
+                      preset.color === 'red' && 'border-red-200 bg-red-50/50 dark:border-red-900/30 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20',
+                      preset.color === 'cyan' && 'border-cyan-200 bg-cyan-50/50 dark:border-cyan-900/30 dark:bg-cyan-900/10 hover:bg-cyan-50 dark:hover:bg-cyan-900/20',
+                    )}
+                  >
+                    <div className={clsx(
+                      "font-bold text-sm",
+                      preset.color === 'orange' && 'text-orange-700 dark:text-orange-400',
+                      preset.color === 'blue' && 'text-blue-700 dark:text-blue-400',
+                      preset.color === 'purple' && 'text-purple-700 dark:text-purple-400',
+                      preset.color === 'yellow' && 'text-yellow-700 dark:text-yellow-400',
+                      preset.color === 'red' && 'text-red-700 dark:text-red-400',
+                      preset.color === 'cyan' && 'text-cyan-700 dark:text-cyan-400',
+                    )}>{preset.label}</div>
+                    <div className="text-xs text-[var(--color-text-muted)] mt-1">{preset.desc}</div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
