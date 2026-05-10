@@ -5,7 +5,7 @@ import { useStore, Junction } from "@/store/useStore";
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export function useAnomalyDetection() {
-  const { junctions, addLog, updateJunction } = useStore();
+  const { junctions, addLog, updateJunction, alertThresholds } = useStore();
   
   // Keep track of previous state to detect spikes and trends
   const prevJunctions = useRef<Record<string, Junction>>({});
@@ -20,8 +20,6 @@ export function useAnomalyDetection() {
     }
 
     const interval = setInterval(() => {
-      let anomalyDetected = false;
-
       junctions.forEach(junction => {
         const prev = prevJunctions.current[junction.id];
         if (!prev) return;
@@ -31,22 +29,22 @@ export function useAnomalyDetection() {
         let severity: "INFO" | "WARN" | "CRIT" | null = null;
 
         // a) Density overflow
-        if (junction.density >= 1.0 && prev.density < 1.0) {
+        if (junction.density >= alertThresholds.density && prev.density < alertThresholds.density) {
           severity = "CRIT";
-          eventMsg = `Node ${junction.id} OFFLINE — density overflow (1.0)`;
+          eventMsg = `Node ${junction.id} OFFLINE — density overflow (${junction.density.toFixed(2)})`;
           newStatus = "emergency";
         }
-        // b) Sudden load spike (>20% jump)
-        else if (junction.load - prev.load > 20) {
+        // b) Sudden load spike
+        else if (junction.load - prev.load > alertThresholds.loadSpike) {
           severity = "WARN";
           eventMsg = `Sudden load spike detected at ${junction.id} (+${junction.load - prev.load}%)`;
           newStatus = "warning";
         }
-        // c) Latency anomaly (>200ms)
+        // c) Latency anomaly
         else {
           const currentLatency = parseInt(junction.latency.replace('ms', ''));
           const prevLatency = parseInt(prev.latency.replace('ms', ''));
-          if (currentLatency > 200 && prevLatency <= 200) {
+          if (currentLatency > alertThresholds.latency && prevLatency <= alertThresholds.latency) {
             severity = "WARN";
             eventMsg = `High latency anomaly at ${junction.id} (${currentLatency}ms)`;
             newStatus = "warning";
@@ -54,8 +52,6 @@ export function useAnomalyDetection() {
         }
 
         if (severity && eventMsg) {
-          anomalyDetected = true;
-          
           // 1. Add log entry
           addLog({
             id: generateId(),

@@ -37,6 +37,14 @@ interface AppState {
   relocateJunctions: (baseLat: number, baseLng: number) => void;
   logs: SystemLog[];
   addLog: (log: SystemLog) => void;
+  alertThresholds: {
+    loadSpike: number;
+    latency: number;
+    density: number;
+  };
+  updateThresholds: (thresholds: Partial<AppState['alertThresholds']>) => void;
+  cityZone: string;
+  setCityZone: (zone: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -72,5 +80,41 @@ export const useStore = create<AppState>((set) => ({
     };
   }),
   logs: [],
-  addLog: (log) => set((state) => ({ logs: [log, ...state.logs].slice(0, 500) }))
+  addLog: (log) => set((state) => ({ logs: [log, ...state.logs].slice(0, 500) })),
+  alertThresholds: {
+    loadSpike: 20,
+    latency: 200,
+    density: 0.9,
+  },
+  updateThresholds: (thresholds) => set((state) => ({
+    alertThresholds: { ...state.alertThresholds, ...thresholds }
+  })),
+  cityZone: 'Manhattan',
+  setCityZone: (zone) => set((state) => {
+    let baseLat = 40.7128;
+    let baseLng = -74.0060;
+    
+    if (zone === 'Sector 4') {
+      baseLat = 40.7580; baseLng = -73.9855;
+    } else if (zone === 'Industrial') {
+      baseLat = 40.7831; baseLng = -73.9712;
+    }
+    
+    // Auto-relocate junctions when zone changes
+    const offsets = [
+      { dLat: 0.002, dLng: -0.005 },
+      { dLat: 0.008, dLng: 0.009 },
+      { dLat: -0.003, dLng: -0.012 },
+      { dLat: 0.012, dLng: -0.004 },
+    ];
+    
+    return {
+      cityZone: zone,
+      junctions: state.junctions.map((j, i) => ({
+        ...j,
+        lat: baseLat + (offsets[i] ? offsets[i].dLat : 0),
+        lng: baseLng + (offsets[i] ? offsets[i].dLng : 0),
+      }))
+    };
+  })
 }));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "@/store/useStore";
-import { Activity, Map as MapIcon, ShieldAlert, GitBranch, Terminal, Moon, Sun, Zap } from "lucide-react";
+import { Activity, Map as MapIcon, ShieldAlert, GitBranch, Terminal, Moon, Sun, Zap, Settings } from "lucide-react";
 import clsx from "clsx";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
@@ -18,6 +18,7 @@ export function Sidebar() {
     { id: "green-corridor", label: "Green Corridor", icon: ShieldAlert },
     { id: "simulations", label: "Simulations", icon: GitBranch },
     { id: "system-logs", label: "System Logs", icon: Terminal, badge: anomalyCount > 0 ? anomalyCount : null, badgeColor: "bg-orange-500" },
+    { id: "settings", label: "Settings", icon: Settings },
   ];
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);

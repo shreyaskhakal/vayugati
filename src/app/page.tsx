@@ -8,6 +8,7 @@ import { JunctionCard } from "@/components/Telemetry/JunctionCard";
 import { SparkLine } from "@/components/Charts/SparkLine";
 import { exportSimPDF } from "@/utils/exportSimPDF";
 import { MaintenanceRecommendations } from "@/components/Telemetry/MaintenanceRecommendations";
+import { SettingsPanel } from "@/components/Settings/SettingsPanel";
 import { useState, useEffect, useRef } from "react";
 import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
 
@@ -737,6 +738,8 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {activeTab === "settings" && <SettingsPanel />}
       </main>
     </div>
   );
