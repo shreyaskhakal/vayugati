@@ -7,16 +7,17 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 
 export function Sidebar() {
-  const { greenSweepActive, setGreenSweepActive, activeTab, setActiveTab, junctions } = useStore();
+  const { greenSweepActive, setGreenSweepActive, activeTab, setActiveTab, junctions, logs } = useStore();
   
   const criticalCount = junctions.filter(j => j.status === 'emergency').length;
+  const anomalyCount = logs.length;
 
   const NAV_ITEMS = [
     { id: "pulse-map", label: "Pulse Map", icon: MapIcon },
     { id: "artery-health", label: "Artery Health", icon: Activity, badge: criticalCount > 0 ? criticalCount : null, badgeColor: "bg-red-500" },
     { id: "green-corridor", label: "Green Corridor", icon: ShieldAlert },
     { id: "simulations", label: "Simulations", icon: GitBranch },
-    { id: "system-logs", label: "System Logs", icon: Terminal, badge: "3", badgeColor: "bg-orange-500" },
+    { id: "system-logs", label: "System Logs", icon: Terminal, badge: anomalyCount > 0 ? anomalyCount : null, badgeColor: "bg-orange-500" },
   ];
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);

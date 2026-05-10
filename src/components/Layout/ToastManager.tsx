@@ -1,6 +1,6 @@
 "use client";
 
-import { useStore } from "@/store/useStore";
+import { useStore, SystemLog } from "@/store/useStore";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, ExternalLink } from "lucide-react";
@@ -10,27 +10,18 @@ interface Toast {
   message: string;
   timestamp: string;
   source: "junction" | "log";
+  severity: "WARN" | "CRIT";
 }
-
-// Pool of simulated CRIT log entries that fire over time
-const CRIT_LOG_POOL = [
-  "Emergency preemption triggered — Sector 4 lockdown active",
-  "Node J3 OFFLINE — density overflow (1.0), throughput = 0",
-  "Alert: Sector 4 emergency still unresolved — escalating to L2",
-  "BRG-1 structural load exceeded 90% — immediate inspection required",
-  "EMS transponder signal lost — rerouting AMB-774",
-  "Cascade failure risk detected — nodes J2+J3 correlated",
-];
 
 function formatTimestamp(): string {
   return new Date().toISOString().substring(11, 19) + " UTC";
 }
 
 export function ToastManager() {
-  const { junctions, setActiveTab } = useStore();
+  const { junctions, logs, setActiveTab } = useStore();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seenMessages = useRef<Set<string>>(new Set());
-  const poolIndex = useRef(0);
+  const lastLogId = useRef<string | null>(null);
 
   const addToast = (toast: Omit<Toast, "id">) => {
     if (seenMessages.current.has(toast.message)) return;
@@ -51,31 +42,26 @@ export function ToastManager() {
     const criticals = junctions.filter((j) => j.status === "emergency");
     if (criticals.length > 0) {
       const msg = `CRITICAL anomaly at ${criticals.map((j) => j.id).join(", ")}`;
-      addToast({ message: msg, timestamp: formatTimestamp(), source: "junction" });
+      addToast({ message: msg, timestamp: formatTimestamp(), source: "junction", severity: "CRIT" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [junctions]);
 
-  // ── Simulate live CRIT log entries ─────────────────────────────────────
+  // ── Listen to real logs from Anomaly Engine ─────────────────────────────
   useEffect(() => {
-    // Fire first one quickly for demo impact, then every ~15s
-    const first = setTimeout(() => {
-      const msg = CRIT_LOG_POOL[poolIndex.current % CRIT_LOG_POOL.length];
-      poolIndex.current++;
-      addToast({ message: msg, timestamp: formatTimestamp(), source: "log" });
-
-      const recurring = setInterval(() => {
-        const m = CRIT_LOG_POOL[poolIndex.current % CRIT_LOG_POOL.length];
-        poolIndex.current++;
-        addToast({ message: m, timestamp: formatTimestamp(), source: "log" });
-      }, 15000);
-
-      return () => clearInterval(recurring);
-    }, 4000);
-
-    return () => clearTimeout(first);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (logs.length > 0) {
+      const latestLog = logs[0];
+      if (latestLog.id !== lastLogId.current && (latestLog.severity === "WARN" || latestLog.severity === "CRIT")) {
+        lastLogId.current = latestLog.id;
+        addToast({
+          message: latestLog.message,
+          timestamp: latestLog.timestamp,
+          source: "log",
+          severity: latestLog.severity as "WARN" | "CRIT"
+        });
+      }
+    }
+  }, [logs]);
 
   const dismiss = (id: string) =>
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -90,21 +76,21 @@ export function ToastManager() {
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 56, scale: 0.92, transition: { duration: 0.18 } }}
             layout
-            className="pointer-events-auto rounded-xl overflow-hidden shadow-[0_4px_24px_rgba(239,68,68,0.25)] border border-red-500/30"
+            className={`pointer-events-auto rounded-xl overflow-hidden shadow-[0_4px_24px_rgba(${toast.severity === 'CRIT' ? '239,68,68' : '249,115,22'},0.25)] border ${toast.severity === 'CRIT' ? 'border-red-500/30' : 'border-orange-500/30'}`}
             style={{ background: "rgba(20,10,10,0.95)", backdropFilter: "blur(12px)" }}
           >
             {/* Top accent line */}
-            <div className="h-0.5 w-full bg-gradient-to-r from-red-600 to-red-400" />
+            <div className={`h-0.5 w-full bg-gradient-to-r ${toast.severity === 'CRIT' ? 'from-red-600 to-red-400' : 'from-orange-500 to-amber-400'}`} />
 
             <div className="p-3.5 flex flex-col gap-2.5">
               {/* Header row */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <AlertTriangle size={14} className="text-red-500 shrink-0 mt-px" />
-                  <span className="text-[10px] font-black tracking-[0.15em] uppercase text-red-500">
-                    CRIT
+                  <AlertTriangle size={14} className={`${toast.severity === 'CRIT' ? 'text-red-500' : 'text-orange-500'} shrink-0 mt-px`} />
+                  <span className={`text-[10px] font-black tracking-[0.15em] uppercase ${toast.severity === 'CRIT' ? 'text-red-500' : 'text-orange-500'}`}>
+                    {toast.severity}
                   </span>
-                  <span className="text-[9px] font-mono text-red-500/50 shrink-0">
+                  <span className={`text-[9px] font-mono ${toast.severity === 'CRIT' ? 'text-red-500/50' : 'text-orange-500/50'} shrink-0`}>
                     {toast.timestamp}
                   </span>
                 </div>
@@ -137,7 +123,7 @@ export function ToastManager() {
 
             {/* Auto-dismiss progress bar */}
             <motion.div
-              className="h-0.5 bg-red-600/60"
+              className={`h-0.5 ${toast.severity === 'CRIT' ? 'bg-red-600/60' : 'bg-orange-500/60'}`}
               initial={{ width: "100%" }}
               animate={{ width: "0%" }}
               transition={{ duration: 5, ease: "linear" }}

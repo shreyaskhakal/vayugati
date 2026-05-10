@@ -2,6 +2,13 @@ import { create } from 'zustand';
 
 export type JunctionStatus = 'optimal' | 'warning' | 'emergency';
 
+export interface SystemLog {
+  id: string;
+  timestamp: string;
+  severity: "INFO" | "WARN" | "CRIT";
+  message: string;
+}
+
 export interface Junction {
   id: string;
   name: string;
@@ -11,6 +18,11 @@ export interface Junction {
   lng: number;
   throughput: number;
   waitTime: number;
+  load: number;
+  latency: string;
+  lastEvent: string;
+  predictedRisk: string;
+  loadHistory: number[];
 }
 
 interface AppState {
@@ -23,17 +35,19 @@ interface AppState {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   relocateJunctions: (baseLat: number, baseLng: number) => void;
+  logs: SystemLog[];
+  addLog: (log: SystemLog) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
   greenSweepActive: false,
   setGreenSweepActive: (active) => set({ greenSweepActive: active }),
   junctions: [
-    // Simulating Manhattan junction coordinates for the mock
-    { id: 'J1', name: 'Alpha Intersect', status: 'optimal', density: 0.3, lat: 40.7128, lng: -74.0060, throughput: 1200, waitTime: 14 },
-    { id: 'J2', name: 'Beta Coronal', status: 'warning', density: 0.7, lat: 40.7200, lng: -73.9900, throughput: 3400, waitTime: 45 },
-    { id: 'J3', name: 'Gamma Node', status: 'emergency', density: 0.95, lat: 40.7100, lng: -74.0150, throughput: 450, waitTime: 120 },
-    { id: 'J4', name: 'Delta Matrix', status: 'optimal', density: 0.1, lat: 40.7250, lng: -74.0000, throughput: 800, waitTime: 5 },
+    // Simulating Manhattan junction coordinates for the mock with full Node structure
+    { id: 'J1', name: 'Alpha Intersect', status: 'optimal', density: 0.3, lat: 40.7128, lng: -74.0060, throughput: 1200, waitTime: 14, load: 30, latency: '45ms', lastEvent: 'Normal traffic flow', predictedRisk: '12%', loadHistory: [25,28,30,29,31,30,32,30,29,31,30,30] },
+    { id: 'J2', name: 'Beta Coronal', status: 'warning', density: 0.7, lat: 40.7200, lng: -73.9900, throughput: 3400, waitTime: 45, load: 72, latency: '120ms', lastEvent: 'Load spike detected', predictedRisk: '65%', loadHistory: [45,48,52,55,61,65,68,70,71,72,72,72] },
+    { id: 'J3', name: 'Gamma Node', status: 'emergency', density: 0.95, lat: 40.7100, lng: -74.0150, throughput: 450, waitTime: 120, load: 95, latency: '350ms', lastEvent: 'Density overflow', predictedRisk: '92%', loadHistory: [70,75,80,85,88,90,92,94,95,95,95,95] },
+    { id: 'J4', name: 'Delta Matrix', status: 'optimal', density: 0.1, lat: 40.7250, lng: -74.0000, throughput: 800, waitTime: 5, load: 10, latency: '20ms', lastEvent: 'System nominal', predictedRisk: '5%', loadHistory: [15,14,12,10,11,10,9,10,11,10,10,10] },
   ],
   activeJunctionId: null,
   setActiveJunctionId: (id) => set({ activeJunctionId: id }),
@@ -56,5 +70,7 @@ export const useStore = create<AppState>((set) => ({
         lng: baseLng + (offsets[i] ? offsets[i].dLng : 0),
       }))
     };
-  })
+  }),
+  logs: [],
+  addLog: (log) => set((state) => ({ logs: [log, ...state.logs].slice(0, 500) }))
 }));

@@ -92,10 +92,10 @@ const LAST_EVENT_MAP: Record<string, string> = {
 };
 
 interface Props {
-  sliderPercentage: number;
+  timelineHour: number;
 }
 
-export function GoogleMapWrapper({ sliderPercentage }: Props) {
+export function GoogleMapWrapper({ timelineHour }: Props) {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "YOUR_API_KEY_HERE",
@@ -215,12 +215,29 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
 
         {/* ── Sensor node overlays ──────────────────────────────────── */}
         {junctions.map((j) => {
-          const colors = STATUS_COLORS[j.status] ?? STATUS_COLORS.optimal;
+          // Determine active load based on timeline
+          const isHistorical = timelineHour < 24;
+          const historyIndex = Math.floor(timelineHour / 2);
+          const historyLoad = j.loadHistory && j.loadHistory.length > 0 ? j.loadHistory[Math.min(historyIndex, j.loadHistory.length - 1)] : 0;
+          
+          const load = isHistorical ? historyLoad : (j.load ?? Math.round(j.density * 100));
+          
+          // Calculate historical status
+          let currentStatus = j.status;
+          if (isHistorical) {
+            if (load > 85) currentStatus = 'emergency';
+            else if (load > 60) currentStatus = 'warning';
+            else currentStatus = 'optimal';
+          }
+          
+          const colors = STATUS_COLORS[currentStatus] ?? STATUS_COLORS.optimal;
           const isClicked = clickedJunctionId === j.id;
-          const latency = LATENCY_MAP[j.id] ?? 55;
-          const risk = RISK_MAP[j.id] ?? 20;
-          const lastEvent = LAST_EVENT_MAP[j.id] ?? 'Nominal';
-          const load = Math.round(j.density * 100);
+          const latency = j.latency ? parseInt(j.latency) : (LATENCY_MAP[j.id] ?? 55);
+          const risk = j.predictedRisk ? parseInt(j.predictedRisk) : (RISK_MAP[j.id] ?? 20);
+          const lastEvent = isHistorical ? `Historical record (Hour ${timelineHour})` : (j.lastEvent ?? LAST_EVENT_MAP[j.id] ?? 'Nominal');
+
+          // Anomaly detected if node isn't optimal
+          const isAnomaly = currentStatus === 'warning' || currentStatus === 'emergency';
 
           return (
             <OverlayView
@@ -233,12 +250,12 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
                 <motion.div
                   animate={{
                     boxShadow: [
-                      `0 0 0 0px ${colors.hex}CC`,
-                      `0 0 0 ${j.status === 'emergency' ? '48px' : '28px'} ${colors.hex}00`,
+                      `0 0 0 0px ${isAnomaly ? '#eab308CC' : colors.hex + 'CC'}`,
+                      `0 0 0 ${currentStatus === 'emergency' ? '48px' : '28px'} ${isAnomaly ? '#eab30800' : colors.hex + '00'}`,
                     ],
                   }}
                   transition={{
-                    duration: Math.max(0.5, 2.5 - j.density * 2),
+                    duration: isAnomaly ? 0.8 : Math.max(0.5, 2.5 - j.density * 2),
                     repeat: Infinity,
                     ease: 'easeOut',
                   }}
@@ -278,14 +295,14 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
                         'border-b border-[var(--color-border-subtle)]',
                       )}>
                         <div className="flex items-center gap-2">
-                          <span className={clsx('w-2 h-2 rounded-full', colors.bg, j.status === 'emergency' && 'animate-pulse')} />
+                          <span className={clsx('w-2 h-2 rounded-full', colors.bg, currentStatus === 'emergency' && 'animate-pulse')} />
                           <span className="font-mono text-sm font-bold text-[var(--color-text-main)]">
                             NODE {j.id}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', colors.badge)}>
-                            {j.status.toUpperCase()}
+                            {currentStatus.toUpperCase()}
                           </span>
                           <button
                             onClick={(e) => { e.stopPropagation(); setClickedJunctionId(null); }}
@@ -377,16 +394,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         </div>
       </div>
 
-      {/* ── AI predicted layer overlay ─────────────────────────────── */}
-      <div
-        className="absolute inset-0 pointer-events-none z-10 bg-[rgba(245,245,247,0.4)]"
-        style={{ clipPath: `polygon(${sliderPercentage}% 0, 100% 0, 100% 100%, ${sliderPercentage}% 100%)` }}
-      >
-        <div className="absolute top-6 right-6 bg-white shadow-[var(--shadow-weightless)] px-4 py-2 rounded text-xs font-bold text-[var(--color-accent-indigo)] border border-[var(--color-border-subtle)] flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          AI PREDICTED (5M AHEAD)
-        </div>
-      </div>
+
 
       {/* ── Map / Satellite toggle ─────────────────────────────────── */}
       <div className="absolute bottom-6 left-4 z-20 flex rounded-lg overflow-hidden shadow-lg border border-white/20 backdrop-blur-sm">

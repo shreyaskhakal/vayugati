@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SplashScreen } from "@/components/Layout/SplashScreen";
 import { ToastManager } from "@/components/Layout/ToastManager";
+import { CommandBar } from "@/components/Layout/CommandBar";
 
 export default function RootLayout({
   children,
@@ -24,6 +25,7 @@ export default function RootLayout({
         <ThemeProvider>
           <SplashScreen />
           <ToastManager />
+          <CommandBar />
           {children}
         </ThemeProvider>
       </body>

@@ -1,21 +1,25 @@
-﻿"use client";
+"use client";
 
 import { useStore } from "@/store/useStore";
 import { Sidebar } from "@/components/Layout/Sidebar";
 import { GoogleMapWrapper } from "@/components/Map/GoogleMapWrapper";
-import { Slider } from "@/components/DigitalTwin/Slider";
+import { TimelineScrubber } from "@/components/DigitalTwin/TimelineScrubber";
 import { JunctionCard } from "@/components/Telemetry/JunctionCard";
 import { SparkLine } from "@/components/Charts/SparkLine";
 import { exportSimPDF } from "@/utils/exportSimPDF";
+import { MaintenanceRecommendations } from "@/components/Telemetry/MaintenanceRecommendations";
 import { useState, useEffect, useRef } from "react";
+import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
 
 import clsx from "clsx";
 import { Search, ShieldAlert } from "lucide-react";
 import { LineChart, Line, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard() {
+  useAnomalyDetection();
+
   const { activeTab, greenSweepActive, activeJunctionId, junctions, updateJunction, setActiveTab } = useStore();
-  const [sliderPercentage, setSliderPercentage] = useState(50);
+  const [timelineHour, setTimelineHour] = useState(24); // 24 = Live
   const [isSimulating, setIsSimulating] = useState(false);
 
   // Simulation state
@@ -160,14 +164,25 @@ export default function Dashboard() {
 
       <main className="flex-1 relative bg-[var(--color-canvas)] overflow-hidden">
         {/* TOP HEADER STATUS */}
-        <div className="absolute top-0 left-0 right-0 h-14 bg-[var(--color-surface-a)]/90 backdrop-blur-md z-30 border-b border-[var(--color-border-subtle)] flex items-center justify-between px-6 pointer-events-none">
+        <div className="absolute top-0 left-0 right-0 h-14 bg-[var(--color-surface-a)]/90 backdrop-blur-md z-30 border-b border-[var(--color-border-subtle)] flex items-center justify-between px-6 pointer-events-auto">
            <div className="flex items-center gap-2">
              <span className={clsx("w-2 h-2 rounded-full", severityColor, "animate-pulse")} />
-             <span className="font-bold text-xs tracking-widest text-gray-800 uppercase">
+             <span className="font-bold text-xs tracking-widest text-[var(--color-text-main)] uppercase">
                City Pulse: {severityText}
              </span>
            </div>
-           <div className="font-mono text-xs text-gray-500 tracking-wider flex flex-col items-end">
+
+           {/* AI Command Hint */}
+           <div 
+             className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--color-canvas)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] cursor-pointer hover:border-[var(--color-accent-indigo)] transition-colors"
+             onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+           >
+             <Search size={14} />
+             <span className="text-xs font-medium">Ask intelligence layer...</span>
+             <kbd className="ml-4 font-sans text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-border-subtle)] text-[var(--color-text-main)] font-bold">⌘K</kbd>
+           </div>
+
+           <div className="font-mono text-xs text-[var(--color-text-muted)] tracking-wider flex flex-col items-end">
              <span>LAST SYNCED</span>
              <span className="text-[var(--color-text-main)] font-bold">UTC {time}</span>
            </div>
@@ -176,8 +191,8 @@ export default function Dashboard() {
         {/* TAB CONTENTS */}
         {activeTab === "pulse-map" && (
           <div className="absolute inset-0 pt-14">
-            <GoogleMapWrapper sliderPercentage={sliderPercentage} />
-            <Slider onDrag={setSliderPercentage} />
+            <GoogleMapWrapper timelineHour={timelineHour} />
+            <TimelineScrubber hour={timelineHour} onChange={setTimelineHour} />
             {activeJunction && <JunctionCard junction={activeJunction} />}
           </div>
         )}
@@ -286,6 +301,8 @@ export default function Dashboard() {
                  </tbody>
                </table>
             </div>
+            
+            <MaintenanceRecommendations arteries={sortedArteries} />
           </div>
         )}
 
