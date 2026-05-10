@@ -12,6 +12,8 @@ import { SettingsPanel } from "@/components/Settings/SettingsPanel";
 import { useState, useEffect, useRef } from "react";
 import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
 import { useReroutePlanner } from "@/hooks/useReroutePlanner";
+import { useLiveTelemetry } from "@/hooks/useLiveTelemetry";
+import { AIInsightsTicker } from "@/components/Telemetry/AIInsightsTicker";
 
 import clsx from "clsx";
 import { Search, ShieldAlert } from "lucide-react";
@@ -20,10 +22,21 @@ import { LineChart, Line, Tooltip as RechartsTooltip, ResponsiveContainer, PieCh
 export default function Dashboard() {
   useAnomalyDetection();
   useReroutePlanner();
+  useLiveTelemetry();
 
-  const { activeTab, greenSweepActive, setGreenSweepActive, greenWaveActive, setGreenWaveActive, activeJunctionId, junctions, updateJunction, setActiveTab } = useStore();
+  const { activeTab, greenSweepActive, setGreenSweepActive, greenWaveActive, setGreenWaveActive, activeJunctionId, junctions, updateJunction, setActiveTab, logs } = useStore();
   const [timelineHour, setTimelineHour] = useState(24); // 24 = Live
   const [isSimulating, setIsSimulating] = useState(false);
+  const [co2Saved, setCo2Saved] = useState(12.4);
+
+  // Live CO₂ counter — ticks up when Green Sweep or Wave is active
+  useEffect(() => {
+    if (!greenSweepActive && !greenWaveActive) return;
+    const id = setInterval(() => {
+      setCo2Saved(prev => Math.round((prev + 0.01) * 100) / 100);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [greenSweepActive, greenWaveActive]);
 
   // Simulation state
   const [trafficMod, setTrafficMod] = useState(0);
@@ -125,7 +138,17 @@ export default function Dashboard() {
     { time: "10:44:30", level: "CRIT",  message: "Alert: Sector 4 emergency still unresolved — escalating to L2",  color: "text-red-400" },
   ];
 
-  const filteredLogs = ALL_LOGS.filter(log => {
+  // Merge static demo logs with live store logs
+  const LIVE_LOGS = logs.slice(0, 20).map(l => ({
+    time: l.timestamp.split(' ')[0] || new Date().toISOString().substring(11, 19),
+    level: l.severity,
+    message: l.message,
+    color: l.severity === 'CRIT' ? 'text-red-400' : l.severity === 'WARN' ? 'text-orange-400' : 'text-green-400',
+  }));
+
+  const COMBINED_LOGS = [...LIVE_LOGS, ...ALL_LOGS].slice(0, 30);
+
+  const filteredLogs = COMBINED_LOGS.filter(log => {
     const matchesSearch = log.message.toLowerCase().includes(logSearch.toLowerCase()) || log.level.toLowerCase().includes(logSearch.toLowerCase());
     const matchesSeverity = logFilterSeverity ? log.level === logFilterSeverity : true;
     return matchesSearch && matchesSeverity;
@@ -175,6 +198,8 @@ export default function Dashboard() {
              </span>
            </div>
 
+           <AIInsightsTicker />
+
            {/* AI Command Hint */}
            <div 
              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--color-canvas)] border border-[var(--color-border-subtle)] text-[var(--color-text-muted)] cursor-pointer hover:border-[var(--color-accent-indigo)] transition-colors"
@@ -205,7 +230,22 @@ export default function Dashboard() {
             <h2 className="text-2xl font-extrabold tracking-tight mb-6 flex items-center justify-between">
               Artery Health
             </h2>
-            
+
+            {/* Live node summary bar */}
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              {[
+                { label: "Total Nodes", value: junctions.length + 1038, color: "text-[var(--color-text-main)]" },
+                { label: "Optimal", value: stableCount + 1038, color: "text-green-500" },
+                { label: "Warning", value: warningCount, color: "text-orange-500" },
+                { label: "Critical", value: criticalCount, color: "text-red-500" },
+              ].map(s => (
+                <div key={s.label} className="p-4 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] text-center shadow-[var(--shadow-weightless)]">
+                  <div className={clsx("text-3xl font-black tabular-nums", s.color)}>{s.value}</div>
+                  <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest mt-1">{s.label}</div>
+                </div>
+              ))}
+            </div>
+
             {isCritical && (
               <div className="mb-6 p-4 rounded bg-red-500/10 border border-red-500/50 text-red-500 font-bold flex items-center gap-3 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.2)]">
                 <ShieldAlert size={20} />
@@ -414,8 +454,8 @@ export default function Dashboard() {
                 </div>
                 <div className="p-6 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)]">
                    <div className="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-widest mb-2">Est. CO₂ Tons Saved</div>
-                   <div className="text-5xl font-black text-[var(--color-text-main)]">12.4</div>
-                   <div className="mt-4 text-xs font-bold text-green-500">↓ 4% vs yesterday</div>
+                   <div className={clsx("text-5xl font-black tabular-nums transition-colors", greenSweepActive || greenWaveActive ? "text-green-500" : "text-[var(--color-text-main)]")}>{co2Saved.toFixed(2)}</div>
+                   <div className="mt-4 text-xs font-bold text-green-500">{greenSweepActive || greenWaveActive ? "↑ Accumulating live..." : "↓ 4% vs yesterday"}</div>
                 </div>
               </div>
             </div>
