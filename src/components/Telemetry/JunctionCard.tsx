@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function JunctionCard({ junction }: Props) {
-  const { setActiveJunctionId } = useStore();
+  const { setActiveJunctionId, executeReroute } = useStore();
 
   const isEmergency = junction.status === "emergency";
   const isWarning = junction.status === "warning";
@@ -71,6 +71,21 @@ export function JunctionCard({ junction }: Props) {
       {isEmergency && (
         <div className="bg-blue-50 text-blue-600 p-3 text-xs font-bold flex items-center gap-2">
           <Activity size={14} /> Bypass Active
+        </div>
+      )}
+
+      {junction.rerouteSuggestion && (
+        <div className="p-4 border-t border-[var(--color-border-subtle)] bg-blue-500/5">
+          <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">AI Reroute Suggestion</div>
+          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+            {junction.rerouteSuggestion.reason}
+          </p>
+          <button 
+            onClick={() => executeReroute(junction.id, junction.rerouteSuggestion!.toNodeId)}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest rounded shadow-lg transition-all"
+          >
+            Execute Autonomous Reroute
+          </button>
         </div>
       )}
     </div>

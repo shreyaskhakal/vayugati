@@ -11,6 +11,7 @@ import { MaintenanceRecommendations } from "@/components/Telemetry/MaintenanceRe
 import { SettingsPanel } from "@/components/Settings/SettingsPanel";
 import { useState, useEffect, useRef } from "react";
 import { useAnomalyDetection } from "@/hooks/useAnomalyDetection";
+import { useReroutePlanner } from "@/hooks/useReroutePlanner";
 
 import clsx from "clsx";
 import { Search, ShieldAlert } from "lucide-react";
@@ -18,8 +19,9 @@ import { LineChart, Line, Tooltip as RechartsTooltip, ResponsiveContainer, PieCh
 
 export default function Dashboard() {
   useAnomalyDetection();
+  useReroutePlanner();
 
-  const { activeTab, greenSweepActive, activeJunctionId, junctions, updateJunction, setActiveTab } = useStore();
+  const { activeTab, greenSweepActive, setGreenSweepActive, greenWaveActive, setGreenWaveActive, activeJunctionId, junctions, updateJunction, setActiveTab } = useStore();
   const [timelineHour, setTimelineHour] = useState(24); // 24 = Live
   const [isSimulating, setIsSimulating] = useState(false);
 
@@ -325,12 +327,28 @@ export default function Dashboard() {
             {/* Impact Numbers */}
             <div className="grid grid-cols-4 gap-4 mb-6">
               {[
-                { label: 'Emergency Response Time', value: '↓ 34%', color: 'text-green-500' },
-                { label: 'Avg Intersection Wait', value: '↓ 28%', color: 'text-green-500' },
-                { label: 'Carbon Emissions', value: '↓ 18%', color: 'text-green-500' },
-                { label: 'EMS Route Clearance', value: '< 90s', color: 'text-[var(--color-accent-indigo)]' },
+                { 
+                  label: 'Emergency Response Time', 
+                  value: greenSweepActive ? (greenWaveActive ? '↓ 52%' : '↓ 34%') : '↓ 0%', 
+                  color: greenSweepActive ? 'text-green-500' : 'text-[var(--color-text-muted)]' 
+                },
+                { 
+                  label: 'Avg Intersection Wait', 
+                  value: greenWaveActive ? '↓ 68%' : (greenSweepActive ? '↓ 28%' : '↓ 0%'), 
+                  color: greenWaveActive || greenSweepActive ? 'text-green-500' : 'text-[var(--color-text-muted)]' 
+                },
+                { 
+                  label: 'Carbon Emissions', 
+                  value: greenSweepActive ? (greenWaveActive ? '↓ 24%' : '↓ 12%') : '↓ 0%', 
+                  color: greenSweepActive ? 'text-green-500' : 'text-[var(--color-text-muted)]' 
+                },
+                { 
+                  label: 'EMS Route Clearance', 
+                  value: greenSweepActive ? '< 45s' : '> 180s', 
+                  color: greenSweepActive ? 'text-[var(--color-accent-indigo)]' : 'text-red-500' 
+                },
               ].map(stat => (
-                <div key={stat.label} className="p-5 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] text-center">
+                <div key={stat.label} className="p-5 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] text-center transition-all">
                   <div className={`text-3xl font-black ${stat.color} mb-1`}>{stat.value}</div>
                   <div className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest leading-tight">{stat.label}</div>
                 </div>
@@ -343,8 +361,30 @@ export default function Dashboard() {
                   <h3 className="font-bold text-[var(--color-text-main)]">Emergency Preemption</h3>
                   <p className="text-sm text-[var(--color-text-muted)]">Auto-clear routes for flagged EMS vehicles</p>
                 </div>
-                <div className="w-12 h-6 bg-[var(--color-accent-indigo)] rounded-full flex items-center p-1 justify-end cursor-pointer">
-                  <div className="w-4 h-4 bg-white rounded-full" />
+                <div 
+                  onClick={() => setGreenSweepActive(!greenSweepActive)}
+                  className={clsx(
+                    "w-12 h-6 rounded-full flex items-center p-1 cursor-pointer transition-colors",
+                    greenSweepActive ? "bg-green-500 justify-end" : "bg-[var(--color-border-subtle)] justify-start"
+                  )}
+                >
+                  <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
+                </div>
+              </div>
+
+              <div className="p-6 border border-[var(--color-border-subtle)] rounded-lg bg-[var(--color-surface-a)] shadow-[var(--shadow-weightless)] flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-[var(--color-text-main)]">AI Green Wave Sync</h3>
+                  <p className="text-sm text-[var(--color-text-muted)]">Synchronize signal timing for zero-latency corridors</p>
+                </div>
+                <div 
+                  onClick={() => setGreenWaveActive(!greenWaveActive)}
+                  className={clsx(
+                    "w-12 h-6 rounded-full flex items-center p-1 cursor-pointer transition-colors",
+                    greenWaveActive ? "bg-[var(--color-accent-indigo)] justify-end" : "bg-[var(--color-border-subtle)] justify-start"
+                  )}
+                >
+                  <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
                 </div>
               </div>
               
@@ -353,12 +393,16 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between py-2 border-b border-[var(--color-border-subtle)]">
                   <span className="text-sm font-mono text-blue-500">AMB-774</span>
                   <span className="text-sm text-[var(--color-text-main)]">En route to General Hospital</span>
-                  <span className="text-xs font-bold text-green-500">CLEAR</span>
+                  <span className={clsx("text-xs font-bold", greenSweepActive ? "text-green-500" : "text-orange-500 animate-pulse")}>
+                    {greenSweepActive ? "CLEAR" : "CONGESTED"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between py-2">
                   <span className="text-sm font-mono text-red-500">FIRE-22</span>
                   <span className="text-sm text-[var(--color-text-main)]">Responding to Sector 4</span>
-                  <span className="text-xs font-bold text-orange-500">ROUTING</span>
+                  <span className={clsx("text-xs font-bold", greenWaveActive ? "text-[var(--color-accent-indigo)]" : "text-red-500 animate-pulse")}>
+                    {greenWaveActive ? "SYNCED" : "BLOCKED"}
+                  </span>
                 </div>
               </div>
               

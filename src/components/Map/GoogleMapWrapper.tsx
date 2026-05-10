@@ -213,6 +213,33 @@ export function GoogleMapWrapper({ timelineHour }: Props) {
           }}
         />
 
+        {junctions.map(j => {
+          if (j.rerouteSuggestion) {
+            const target = junctions.find(tj => tj.id === j.rerouteSuggestion?.toNodeId);
+            if (target) {
+              return (
+                <Polyline
+                  key={`reroute-${j.id}`}
+                  path={[{ lat: j.lat, lng: j.lng }, { lat: target.lat, lng: target.lng }]}
+                  options={{
+                    strokeColor: '#3b82f6',
+                    strokeOpacity: 0.6,
+                    strokeWeight: 3,
+                    zIndex: 4,
+                    geodesic: true,
+                    icons: [{
+                      icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2 },
+                      offset: '0',
+                      repeat: '10px'
+                    }]
+                  }}
+                />
+              );
+            }
+          }
+          return null;
+        })}
+
         {/* ── Sensor node overlays ──────────────────────────────────── */}
         {junctions.map((j) => {
           // Determine active load based on timeline

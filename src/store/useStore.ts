@@ -23,11 +23,17 @@ export interface Junction {
   lastEvent: string;
   predictedRisk: string;
   loadHistory: number[];
+  rerouteSuggestion?: {
+    toNodeId: string;
+    reason: string;
+  };
 }
 
 interface AppState {
   greenSweepActive: boolean;
   setGreenSweepActive: (active: boolean) => void;
+  greenWaveActive: boolean;
+  setGreenWaveActive: (active: boolean) => void;
   junctions: Junction[];
   activeJunctionId: string | null;
   setActiveJunctionId: (id: string | null) => void;
@@ -37,6 +43,7 @@ interface AppState {
   relocateJunctions: (baseLat: number, baseLng: number) => void;
   logs: SystemLog[];
   addLog: (log: SystemLog) => void;
+  executeReroute: (fromId: string, toId: string) => void;
   alertThresholds: {
     loadSpike: number;
     latency: number;
@@ -50,6 +57,14 @@ interface AppState {
 export const useStore = create<AppState>((set) => ({
   greenSweepActive: false,
   setGreenSweepActive: (active) => set({ greenSweepActive: active }),
+  greenWaveActive: false,
+  setGreenWaveActive: (active) => set((state) => ({ 
+    greenWaveActive: active,
+    junctions: state.junctions.map(j => ({
+      ...j,
+      waitTime: active ? Math.max(2, Math.round(j.waitTime * 0.2)) : j.waitTime
+    }))
+  })),
   junctions: [
     // Simulating Manhattan junction coordinates for the mock with full Node structure
     { id: 'J1', name: 'Alpha Intersect', status: 'optimal', density: 0.3, lat: 40.7128, lng: -74.0060, throughput: 1200, waitTime: 14, load: 30, latency: '45ms', lastEvent: 'Normal traffic flow', predictedRisk: '12%', loadHistory: [25,28,30,29,31,30,32,30,29,31,30,30] },
@@ -81,6 +96,37 @@ export const useStore = create<AppState>((set) => ({
   }),
   logs: [],
   addLog: (log) => set((state) => ({ logs: [log, ...state.logs].slice(0, 500) })),
+  executeReroute: (fromId, toId) => set((state) => {
+    const fromNode = state.junctions.find(j => j.id === fromId);
+    if (!fromNode) return state;
+    
+    // Simulate reroute by shifting 30% of density from 'from' to 'to'
+    const shiftAmount = fromNode.density * 0.3;
+    
+    return {
+      junctions: state.junctions.map(j => {
+        if (j.id === fromId) {
+          const newDensity = Math.max(0.1, j.density - shiftAmount);
+          return { 
+            ...j, 
+            density: newDensity, 
+            load: Math.round(newDensity * 100),
+            status: 'optimal' as const, // Force recovery
+            rerouteSuggestion: undefined 
+          };
+        }
+        if (j.id === toId) {
+          const newDensity = Math.min(1.0, j.density + shiftAmount);
+          return { 
+            ...j, 
+            density: newDensity, 
+            load: Math.round(newDensity * 100) 
+          };
+        }
+        return j;
+      })
+    };
+  }),
   alertThresholds: {
     loadSpike: 20,
     latency: 200,
