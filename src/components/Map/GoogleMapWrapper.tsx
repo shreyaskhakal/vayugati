@@ -1,25 +1,18 @@
 "use client";
 
-import { GoogleMap, useJsApiLoader, OverlayView } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, OverlayView, Polyline } from '@react-google-maps/api';
 import { useStore } from '@/store/useStore';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
+import { X } from 'lucide-react';
 
-const containerStyle = {
-  width: '100%',
-  height: '100%',
-};
+const containerStyle = { width: '100%', height: '100%' };
 
-// Manhattan coordinate center
-const center = {
-  lat: 40.7128,
-  lng: -74.0060,
-};
+const center = { lat: 40.7128, lng: -74.0060 };
 
-// Silver Protocol map style (SpaceX White aesthetic)
-const silverMapStyle = [
+const silverMapStyle: google.maps.MapTypeStyle[] = [
   { elementType: "geometry", stylers: [{ color: "#ffffff" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#d59563" }, { visibility: "off" }] },
@@ -40,7 +33,7 @@ const silverMapStyle = [
   { featureType: "water", elementType: "labels.text", stylers: [{ visibility: "off" }] },
 ];
 
-const darkMapStyle = [
+const darkMapStyle: google.maps.MapTypeStyle[] = [
   { elementType: "geometry", stylers: [{ color: "#212121" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#757575" }, { visibility: "off" }] },
@@ -61,8 +54,42 @@ const darkMapStyle = [
   { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
   { featureType: "transit", elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
   { featureType: "water", elementType: "geometry", stylers: [{ color: "#000000" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] }
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] },
 ];
+
+// ── Polyline pulse animation hook ──────────────────────────────────────────
+function usePulsingOpacity(speed = 1200): number {
+  const [opacity, setOpacity] = useState(1);
+  useEffect(() => {
+    let rising = false;
+    const interval = setInterval(() => {
+      setOpacity(prev => {
+        if (prev <= 0.25) { rising = true; }
+        if (prev >= 1) { rising = false; }
+        return rising ? prev + 0.06 : prev - 0.06;
+      });
+    }, speed / 20);
+    return () => clearInterval(interval);
+  }, [speed]);
+  return opacity;
+}
+
+// ── Node status helpers ────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  emergency: { bg: 'bg-red-500', text: 'text-red-500', badge: 'bg-red-500/20 text-red-400 border border-red-500/40', hex: '#ef4444' },
+  warning:   { bg: 'bg-orange-500', text: 'text-orange-500', badge: 'bg-orange-500/20 text-orange-400 border border-orange-500/40', hex: '#f97316' },
+  optimal:   { bg: 'bg-[var(--color-accent-indigo)]', text: 'text-green-500', badge: 'bg-green-500/20 text-green-400 border border-green-500/40', hex: '#4F46E5' },
+};
+
+// Simulated latency lookup (ms)
+const LATENCY_MAP: Record<string, number> = { J1: 48, J2: 220, J3: 95, J4: 31 };
+const RISK_MAP: Record<string, number>    = { J1: 18, J2: 67, J3: 92, J4: 4 };
+const LAST_EVENT_MAP: Record<string, string> = {
+  J1: 'Density shift 0.30→0.35',
+  J2: 'Latency spike 220ms',
+  J3: 'Node OFFLINE — overflow',
+  J4: 'Signal cycle nominal',
+};
 
 interface Props {
   sliderPercentage: number;
@@ -76,49 +103,59 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapCenter, setMapCenter] = useState(center);
-  const [hoveredJunctionId, setHoveredJunctionId] = useState<string | null>(null);
   const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
+  const [clickedJunctionId, setClickedJunctionId] = useState<string | null>(null);
+  const routeOpacity = usePulsingOpacity(1400);
   const { theme } = useTheme();
   const { junctions, setActiveJunctionId, activeJunctionId, relocateJunctions } = useStore();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
+        ({ coords: { latitude, longitude } }) => {
           setMapCenter({ lat: latitude, lng: longitude });
           relocateJunctions(latitude, longitude);
         },
-        (error) => {
-          console.warn("Geolocation permission denied or failed. Using default center.", error);
-        }
+        (err) => console.warn("Geolocation failed:", err)
       );
     }
   }, [relocateJunctions]);
 
-  const onLoad = useCallback((m: google.maps.Map) => {
-    setMap(m);
-  }, []);
+  const onLoad = useCallback((m: google.maps.Map) => { setMap(m); }, []);
+  const onUnmount = useCallback(() => { setMap(null); }, []);
 
-  const onUnmount = useCallback(() => {
-    setMap(null);
-  }, []);
-
-  // Reactively update map style and type when theme/mapType changes
   useEffect(() => {
     if (!map) return;
-    map.setOptions({ styles: mapType === 'satellite' ? [] : (theme === 'dark' ? darkMapStyle : silverMapStyle) });
+    map.setOptions({
+      styles: mapType === 'satellite' ? [] : (theme === 'dark' ? darkMapStyle : silverMapStyle),
+    });
     map.setMapTypeId(mapType);
   }, [theme, map, mapType]);
 
+  // ── Emergency route definitions (relative to mapCenter) ───────────────
+  const AMB_ROUTE: google.maps.LatLngLiteral[] = [
+    { lat: mapCenter.lat,         lng: mapCenter.lng },
+    { lat: mapCenter.lat + 0.003, lng: mapCenter.lng + 0.004 },
+    { lat: mapCenter.lat + 0.006, lng: mapCenter.lng + 0.006 },
+    { lat: mapCenter.lat + 0.009, lng: mapCenter.lng + 0.008 }, // General Hospital
+  ];
+
+  const FIRE_ROUTE: google.maps.LatLngLiteral[] = [
+    { lat: mapCenter.lat,          lng: mapCenter.lng },
+    { lat: mapCenter.lat - 0.003,  lng: mapCenter.lng - 0.003 },
+    { lat: mapCenter.lat - 0.007,  lng: mapCenter.lng - 0.009 },
+    { lat: mapCenter.lat - 0.010,  lng: mapCenter.lng - 0.013 }, // Sector 4
+  ];
+
   if (!isLoaded) return (
     <div className="w-full h-full bg-[var(--color-canvas)] flex flex-col items-center justify-center">
-      <motion.div 
-        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} 
+      <motion.div
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
         transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
         className="w-12 h-12 rounded-full border-4 border-[var(--color-accent-indigo)] border-t-transparent animate-spin mb-4"
       />
-      <motion.div 
+      <motion.div
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ repeat: Infinity, duration: 1.5 }}
         className="text-xs font-bold tracking-[0.2em] uppercase text-[var(--color-accent-indigo)]"
@@ -129,109 +166,234 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
   );
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full">
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={mapCenter}
         zoom={13}
         onLoad={onLoad}
         onUnmount={onUnmount}
-        options={{ styles: mapType === 'satellite' ? [] : (theme === 'dark' ? darkMapStyle : silverMapStyle), mapTypeControl: false, fullscreenControl: false, streetViewControl: false, zoomControl: true, mapTypeId: mapType }}
+        onClick={() => setClickedJunctionId(null)}
+        options={{
+          styles: mapType === 'satellite' ? [] : (theme === 'dark' ? darkMapStyle : silverMapStyle),
+          mapTypeControl: false,
+          fullscreenControl: false,
+          streetViewControl: false,
+          zoomControl: true,
+          mapTypeId: mapType,
+        }}
       >
-        {/* LIVE LAYER */}
-        {junctions.map((j) => (
-          <OverlayView
-            key={`live-${j.id}`}
-            position={{ lat: j.lat, lng: j.lng }}
-            mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-          >
-            <div 
-              onClick={() => {
-                setActiveJunctionId(j.id);
-                if (map) {
-                  map.panTo({ lat: j.lat, lng: j.lng });
-                  map.setZoom(16);
-                }
-              }}
-              onMouseEnter={() => setHoveredJunctionId(j.id)}
-              onMouseLeave={() => setHoveredJunctionId(null)}
-              className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10 w-12 h-12 flex items-center justify-center"
-            >
-              {/* Heat Pulse Marker */}
-              <motion.div
-                animate={{
-                  boxShadow: [
-                    `0 0 0 0px ${j.status === 'emergency' ? 'rgba(239,68,68,0.9)' : j.status === 'warning' ? 'rgba(249,115,22,0.7)' : 'rgba(79,70,229,0.7)'}`, 
-                    `0 0 0 ${j.status === 'emergency' ? '50px' : '30px'} rgba(79,70,229,0)`
-                  ]
-                }}
-                transition={{
-                  duration: Math.max(0.5, 2.5 - (j.density * 2)),
-                  repeat: Infinity,
-                  ease: "easeOut"
-                }}
-                className={clsx(
-                  "w-5 h-5 rounded-full shadow-lg",
-                  j.status === 'emergency' ? 'bg-red-500 shadow-red-500' : j.status === 'warning' ? 'bg-orange-500 shadow-orange-500' : 'bg-[var(--color-accent-indigo)] shadow-[var(--color-accent-indigo)]',
-                  activeJunctionId === j.id && "ring-4 ring-[var(--color-canvas)]"
-                )}
-              />
+        {/* ── Emergency route polylines ─────────────────────────────── */}
+        <Polyline
+          path={AMB_ROUTE}
+          options={{
+            strokeColor: '#3b82f6',
+            strokeOpacity: routeOpacity,
+            strokeWeight: 5,
+            zIndex: 5,
+            icons: [{
+              icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3.5, strokeColor: '#3b82f6' },
+              offset: '100%',
+              repeat: '80px',
+            }],
+          }}
+        />
+        <Polyline
+          path={FIRE_ROUTE}
+          options={{
+            strokeColor: '#ef4444',
+            strokeOpacity: routeOpacity,
+            strokeWeight: 5,
+            zIndex: 5,
+            icons: [{
+              icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 3.5, strokeColor: '#ef4444' },
+              offset: '100%',
+              repeat: '80px',
+            }],
+          }}
+        />
 
-              {/* Hover Tooltip */}
-              <AnimatePresence>
-                {hoveredJunctionId === j.id && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 5 }}
-                    className="absolute top-12 whitespace-nowrap bg-[var(--color-surface-a)] backdrop-blur-md shadow-[var(--shadow-weightless)] border border-[var(--color-border-subtle)] rounded-lg p-3 z-50 pointer-events-none"
-                  >
-                    <div className="font-mono text-xs font-bold mb-2 flex items-center gap-2 text-[var(--color-text-main)]">
-                       <span className={clsx("w-2 h-2 rounded-full", j.status === 'emergency' ? 'bg-red-500' : j.status === 'warning' ? 'bg-orange-500' : 'bg-green-500')} />
-                       NODE: {j.id}
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
-                      <span>Status</span>
-                      <span className={clsx("font-bold text-right", j.status === 'emergency' ? 'text-red-500' : j.status === 'warning' ? 'text-orange-500' : 'text-green-500')}>
-                        {j.status.toUpperCase()}
-                      </span>
-                      <span>Load Level</span>
-                      <span className="font-bold text-right text-[var(--color-text-main)]">{Math.round(j.density * 100)}%</span>
-                      <span>Last Updated</span>
-                      <span className="font-bold text-right text-[var(--color-text-main)]">UTC {new Date().toISOString().substr(11, 8)}</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </OverlayView>
-        ))}
+        {/* ── Sensor node overlays ──────────────────────────────────── */}
+        {junctions.map((j) => {
+          const colors = STATUS_COLORS[j.status] ?? STATUS_COLORS.optimal;
+          const isClicked = clickedJunctionId === j.id;
+          const latency = LATENCY_MAP[j.id] ?? 55;
+          const risk = RISK_MAP[j.id] ?? 20;
+          const lastEvent = LAST_EVENT_MAP[j.id] ?? 'Nominal';
+          const load = Math.round(j.density * 100);
+
+          return (
+            <OverlayView
+              key={`node-${j.id}`}
+              position={{ lat: j.lat, lng: j.lng }}
+              mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+            >
+              <div className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer z-10 w-12 h-12 flex items-center justify-center">
+                {/* Pulse rings */}
+                <motion.div
+                  animate={{
+                    boxShadow: [
+                      `0 0 0 0px ${colors.hex}CC`,
+                      `0 0 0 ${j.status === 'emergency' ? '48px' : '28px'} ${colors.hex}00`,
+                    ],
+                  }}
+                  transition={{
+                    duration: Math.max(0.5, 2.5 - j.density * 2),
+                    repeat: Infinity,
+                    ease: 'easeOut',
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setClickedJunctionId(prev => prev === j.id ? null : j.id);
+                    setActiveJunctionId(j.id);
+                    if (map) { map.panTo({ lat: j.lat, lng: j.lng }); map.setZoom(16); }
+                  }}
+                  className={clsx(
+                    'w-5 h-5 rounded-full shadow-lg transition-transform hover:scale-125',
+                    colors.bg,
+                    activeJunctionId === j.id && 'ring-4 ring-white/60',
+                  )}
+                />
+
+                {/* ── Rich click tooltip ─────────────────────────────── */}
+                <AnimatePresence>
+                  {isClicked && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95, transition: { duration: 0.15 } }}
+                      onClick={(e) => e.stopPropagation()}
+                      className={clsx(
+                        // Position above node; clamp with max-w
+                        'absolute bottom-8 left-1/2 -translate-x-1/2 w-64',
+                        'bg-[var(--color-surface-a)] backdrop-blur-md',
+                        'border border-[var(--color-border-subtle)]',
+                        'rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] z-[60]',
+                        'overflow-hidden',
+                      )}
+                    >
+                      {/* Header */}
+                      <div className={clsx(
+                        'flex items-center justify-between px-4 py-3',
+                        'border-b border-[var(--color-border-subtle)]',
+                      )}>
+                        <div className="flex items-center gap-2">
+                          <span className={clsx('w-2 h-2 rounded-full', colors.bg, j.status === 'emergency' && 'animate-pulse')} />
+                          <span className="font-mono text-sm font-bold text-[var(--color-text-main)]">
+                            NODE {j.id}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', colors.badge)}>
+                            {j.status.toUpperCase()}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setClickedJunctionId(null); }}
+                            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-main)] transition-colors"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Body */}
+                      <div className="px-4 py-3 flex flex-col gap-3">
+                        <div className="text-xs font-semibold text-[var(--color-text-muted)]">{j.name}</div>
+
+                        {/* Load bar */}
+                        <div>
+                          <div className="flex justify-between text-[10px] font-bold text-[var(--color-text-muted)] mb-1 uppercase tracking-wider">
+                            <span>Load</span>
+                            <span className={clsx(
+                              load > 80 ? 'text-red-500' : load > 50 ? 'text-orange-500' : 'text-green-500'
+                            )}>{load}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-[var(--color-border-subtle)] overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${load}%` }}
+                              transition={{ duration: 0.6, ease: 'easeOut' }}
+                              className={clsx(
+                                'h-full rounded-full',
+                                load > 80 ? 'bg-red-500' : load > 50 ? 'bg-orange-500' : 'bg-green-500'
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Stats grid */}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
+                          <div>
+                            <div className="text-[var(--color-text-muted)] uppercase tracking-wider font-bold">Latency</div>
+                            <div className={clsx('font-bold mt-0.5', latency > 150 ? 'text-red-500' : latency > 80 ? 'text-orange-500' : 'text-green-500')}>
+                              {latency} ms
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[var(--color-text-muted)] uppercase tracking-wider font-bold">Pred. Risk</div>
+                            <div className={clsx('font-bold mt-0.5', risk > 60 ? 'text-red-500' : risk > 30 ? 'text-orange-500' : 'text-green-500')}>
+                              {risk}%
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="text-[var(--color-text-muted)] uppercase tracking-wider font-bold">Last Event</div>
+                            <div className="font-medium text-[var(--color-text-main)] mt-0.5 leading-snug">{lastEvent}</div>
+                          </div>
+                          <div>
+                            <div className="text-[var(--color-text-muted)] uppercase tracking-wider font-bold">Throughput</div>
+                            <div className="font-bold text-[var(--color-text-main)] mt-0.5">{j.throughput} v/h</div>
+                          </div>
+                          <div>
+                            <div className="text-[var(--color-text-muted)] uppercase tracking-wider font-bold">Wait</div>
+                            <div className="font-bold text-[var(--color-text-main)] mt-0.5">{j.waitTime}s</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer timestamp */}
+                      <div className="px-4 py-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-canvas)]">
+                        <span className="text-[9px] font-mono text-[var(--color-text-muted)]">
+                          UTC {new Date().toISOString().substring(11, 19)}
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </OverlayView>
+          );
+        })}
       </GoogleMap>
 
-      {/* AI PREDICTED LAYER OVERLAY (Using clip path to simulate wipe) */}
-      <div 
+      {/* ── Route legend badges ─────────────────────────────────────── */}
+      <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 pointer-events-none">
+        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+          <span className="w-3 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+          <span className="text-[10px] font-bold text-blue-400 tracking-wider">AMB-774 ACTIVE</span>
+        </div>
+        <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
+          <span className="w-3 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-[10px] font-bold text-red-400 tracking-wider">FIRE-22 ROUTING</span>
+        </div>
+      </div>
+
+      {/* ── AI predicted layer overlay ─────────────────────────────── */}
+      <div
         className="absolute inset-0 pointer-events-none z-10 bg-[rgba(245,245,247,0.4)]"
         style={{ clipPath: `polygon(${sliderPercentage}% 0, 100% 0, 100% 100%, ${sliderPercentage}% 100%)` }}
       >
         <div className="absolute top-6 right-6 bg-white shadow-[var(--shadow-weightless)] px-4 py-2 rounded text-xs font-bold text-[var(--color-accent-indigo)] border border-[var(--color-border-subtle)] flex items-center gap-2">
-           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-           AI PREDICTED (5M AHEAD)
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          AI PREDICTED (5M AHEAD)
         </div>
-        
-        {/* Render predicted paths/nodes here in a real app. We simulate by overlaying glowing borders */}
-        {isLoaded && map && junctions.map((j) => {
-          return null;
-        })}
       </div>
 
-      {/* Custom Map/Satellite toggle */}
+      {/* ── Map / Satellite toggle ─────────────────────────────────── */}
       <div className="absolute bottom-6 left-4 z-20 flex rounded-lg overflow-hidden shadow-lg border border-white/20 backdrop-blur-sm">
         <button
           onClick={() => setMapType('roadmap')}
           className={`px-4 py-2 text-xs font-bold tracking-wider transition-all ${
-            mapType === 'roadmap'
-              ? 'bg-[var(--color-accent-indigo)] text-white'
-              : 'bg-black/60 text-gray-300 hover:bg-black/80'
+            mapType === 'roadmap' ? 'bg-[var(--color-accent-indigo)] text-white' : 'bg-black/60 text-gray-300 hover:bg-black/80'
           }`}
         >
           MAP
@@ -239,9 +401,7 @@ export function GoogleMapWrapper({ sliderPercentage }: Props) {
         <button
           onClick={() => setMapType('satellite')}
           className={`px-4 py-2 text-xs font-bold tracking-wider transition-all ${
-            mapType === 'satellite'
-              ? 'bg-[var(--color-accent-indigo)] text-white'
-              : 'bg-black/60 text-gray-300 hover:bg-black/80'
+            mapType === 'satellite' ? 'bg-[var(--color-accent-indigo)] text-white' : 'bg-black/60 text-gray-300 hover:bg-black/80'
           }`}
         >
           SATELLITE

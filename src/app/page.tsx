@@ -1,10 +1,12 @@
-"use client";
+﻿"use client";
 
 import { useStore } from "@/store/useStore";
 import { Sidebar } from "@/components/Layout/Sidebar";
 import { GoogleMapWrapper } from "@/components/Map/GoogleMapWrapper";
 import { Slider } from "@/components/DigitalTwin/Slider";
 import { JunctionCard } from "@/components/Telemetry/JunctionCard";
+import { SparkLine } from "@/components/Charts/SparkLine";
+import { exportSimPDF } from "@/utils/exportSimPDF";
 import { useState, useEffect, useRef } from "react";
 
 import clsx from "clsx";
@@ -78,11 +80,11 @@ export default function Dashboard() {
   ];
 
   const ARTERY_DATA = [
-    { id: 'ART-4B', location: 'Sector 4', trend: 'down', risk: 72 },
-    { id: 'TUN-9', location: 'Midtown Tunnel', trend: 'stable', risk: 12 },
-    { id: 'BRG-1', location: 'North Bridge', trend: 'up', risk: 85 },
-    { id: 'ART-2A', location: 'Sector 2', trend: 'stable', risk: 4 },
-    { id: 'EXP-5', location: 'West Expressway', trend: 'down', risk: 45 },
+    { id: 'ART-4B', location: 'Sector 4',       trend: 'down',   risk: 72, spark: [55,60,65,70,68,72,75,73,70,72,71,72] },
+    { id: 'TUN-9',  location: 'Midtown Tunnel', trend: 'stable', risk: 12, spark: [14,13,12,11,13,12,12,11,13,12,11,12] },
+    { id: 'BRG-1',  location: 'North Bridge',   trend: 'up',     risk: 85, spark: [40,48,55,60,65,70,75,78,80,82,84,85] },
+    { id: 'ART-2A', location: 'Sector 2',       trend: 'stable', risk: 4,  spark: [5,4,5,4,4,5,4,4,4,5,4,4] },
+    { id: 'EXP-5',  location: 'West Expressway',trend: 'down',   risk: 45, spark: [70,65,60,58,55,52,50,48,47,46,45,45] },
   ];
 
   const sortedArteries = [...ARTERY_DATA].sort((a, b) => {
@@ -158,7 +160,7 @@ export default function Dashboard() {
 
       <main className="flex-1 relative bg-[var(--color-canvas)] overflow-hidden">
         {/* TOP HEADER STATUS */}
-        <div className="absolute top-0 left-0 right-0 h-14 bg-white/80 backdrop-blur-md z-30 border-b border-[var(--color-border-subtle)] flex items-center justify-between px-6 pointer-events-none">
+        <div className="absolute top-0 left-0 right-0 h-14 bg-[var(--color-surface-a)]/90 backdrop-blur-md z-30 border-b border-[var(--color-border-subtle)] flex items-center justify-between px-6 pointer-events-none">
            <div className="flex items-center gap-2">
              <span className={clsx("w-2 h-2 rounded-full", severityColor, "animate-pulse")} />
              <span className="font-bold text-xs tracking-widest text-gray-800 uppercase">
@@ -248,6 +250,7 @@ export default function Dashboard() {
                        Artery / Location {sortConfig.key === 'location' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                      </th>
                      <th className="p-4 font-bold tracking-widest uppercase text-[10px]">Trend</th>
+                     <th className="p-4 font-bold tracking-widest uppercase text-[10px]">12H Spark</th>
                      <th className="p-4 font-bold tracking-widest uppercase text-[10px] text-right cursor-pointer hover:text-[var(--color-text-main)] transition-colors" onClick={() => handleSort('risk')}>
                        Predicted Risk % {sortConfig.key === 'risk' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                      </th>
@@ -264,6 +267,14 @@ export default function Dashboard() {
                          {a.trend === 'up' && <span className="text-red-500 font-bold">↑</span>}
                          {a.trend === 'down' && <span className="text-green-500 font-bold">↓</span>}
                          {a.trend === 'stable' && <span className="text-[var(--color-text-muted)] font-bold">-</span>}
+                       </td>
+                       <td className="p-4">
+                         <SparkLine
+                           data={a.spark}
+                           color={a.trend === 'up' ? '#ef4444' : a.trend === 'down' ? '#22c55e' : '#6b7280'}
+                           width={64}
+                           height={28}
+                         />
                        </td>
                        <td className="p-4 text-right">
                          <span className={clsx("font-black", a.risk > 50 ? "text-red-500" : a.risk > 20 ? "text-orange-500" : "text-green-500")}>
@@ -446,16 +457,22 @@ export default function Dashboard() {
                     {simResults && (
                       <button
                         onClick={() => {
+                          // Save to local list
                           setSavedSims(prev => [...prev, {
                             id: Date.now().toString(),
                             name: `Run at ${new Date().toLocaleTimeString()}`,
                             congestion: simResults.congestion,
                             savedAt: simResults.savedAt,
                           }]);
+                          // Export PDF
+                          exportSimPDF(
+                            { trafficMod, weatherIndex },
+                            simResults,
+                          );
                         }}
                         className="text-xs font-bold px-3 py-1.5 rounded border border-[var(--color-accent-indigo)] text-[var(--color-accent-indigo)] hover:bg-[var(--color-accent-indigo)] hover:text-white transition-all"
                       >
-                        💾 Save Simulation
+                        💾 Save &amp; Export PDF
                       </button>
                     )}
                   </div>
@@ -595,10 +612,10 @@ export default function Dashboard() {
         )}
 
         {activeTab === "system-logs" && (
-          <div className="absolute inset-0 pt-14 bg-[#0d1117] flex flex-col font-mono text-xs overflow-hidden">
+          <div className="absolute inset-0 pt-14 bg-[var(--color-terminal-bg)] flex flex-col font-mono text-xs overflow-hidden">
             
             {/* Header toolbar */}
-            <div className="p-3 border-b border-gray-800 bg-gray-900/80 backdrop-blur z-10 flex flex-wrap items-center gap-3">
+            <div className="p-3 border-b border-[var(--color-terminal-border)] bg-[var(--color-surface-a)]/80 backdrop-blur z-10 flex flex-wrap items-center gap-3">
               {/* Title + log count */}
               <div className="flex items-center gap-3 mr-2">
                 <h2 className="text-sm font-bold text-white flex items-center gap-2 whitespace-nowrap">
@@ -636,7 +653,7 @@ export default function Dashboard() {
                 placeholder="Search logs..."
                 value={logSearch}
                 onChange={e => setLogSearch(e.target.value)}
-                className="bg-gray-800 text-white px-3 py-1.5 rounded border border-gray-700 outline-none focus:border-[var(--color-accent-indigo)] text-xs flex-1 min-w-32"
+                className="bg-[var(--color-canvas)] text-[var(--color-text-main)] px-3 py-1.5 rounded border border-[var(--color-terminal-border)] outline-none focus:border-[var(--color-accent-indigo)] text-xs flex-1 min-w-32"
               />
 
               {/* Tail + Export controls */}
@@ -690,14 +707,14 @@ export default function Dashboard() {
             </div>
 
             {/* Tail status bar */}
-            <div className="h-7 border-t border-gray-800 bg-gray-900/60 px-4 flex items-center justify-between">
-              <span className="text-[10px] text-gray-600">
-                Range: <span className="text-gray-400">{logTimeRange}</span>
+            <div className="h-7 border-t border-[var(--color-terminal-border)] bg-[var(--color-surface-a)]/60 px-4 flex items-center justify-between">
+              <span className="text-[10px] text-[var(--color-text-muted)]">
+                Range: <span className="text-[var(--color-text-main)]">{logTimeRange}</span>
                 {" · "}
-                Filter: <span className="text-gray-400">{logFilterSeverity ?? 'ALL'}</span>
+                Filter: <span className="text-[var(--color-text-main)]">{logFilterSeverity ?? 'ALL'}</span>
               </span>
-              <span className={clsx("text-[10px] font-bold flex items-center gap-1.5", logTailActive ? 'text-green-500' : 'text-gray-600')}>
-                <span className={clsx("w-1.5 h-1.5 rounded-full", logTailActive ? 'bg-green-500 animate-pulse' : 'bg-gray-600')} />
+              <span className={clsx("text-[10px] font-bold flex items-center gap-1.5", logTailActive ? 'text-green-500' : 'text-[var(--color-text-muted)]')}>
+                <span className={clsx("w-1.5 h-1.5 rounded-full", logTailActive ? 'bg-green-500 animate-pulse' : 'bg-[var(--color-text-muted)]')} />
                 {logTailActive ? 'LIVE TAIL' : 'PAUSED'}
               </span>
             </div>

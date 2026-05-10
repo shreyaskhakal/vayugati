@@ -8,12 +8,16 @@
   --color-cyan-glow: #06b6d4;
   --color-text-main: var(--text-main);
   --color-text-muted: var(--text-muted);
-  
+  --color-terminal-bg: var(--terminal-bg);
+  --color-terminal-row: var(--terminal-row);
+  --color-terminal-border: var(--terminal-border);
+
   --shadow-weightless: 0 20px 60px var(--shadow-color);
   --shadow-cyan-glow: 0 0 20px rgba(6, 182, 212, 0.5);
   --shadow-indigo-glow: 0 0 15px rgba(79, 70, 229, 0.6);
 }
 
+/* ── Light mode ─────────────────────────────────────────────── */
 :root {
   --bg-canvas: #FFFFFF;
   --bg-surface-a: #F5F5F7;
@@ -21,8 +25,14 @@
   --text-main: #111827;
   --text-muted: #6B7280;
   --shadow-color: rgba(0, 0, 0, 0.03);
+
+  /* System Logs panel */
+  --terminal-bg: #f0f2f5;
+  --terminal-row: rgba(0, 0, 0, 0.03);
+  --terminal-border: #d1d5db;
 }
 
+/* ── Dark mode ──────────────────────────────────────────────── */
 .dark {
   --bg-canvas: #09090b;
   --bg-surface-a: #18181b;
@@ -30,6 +40,11 @@
   --text-main: #f4f4f5;
   --text-muted: #a1a1aa;
   --shadow-color: rgba(0, 0, 0, 0.5);
+
+  /* System Logs panel */
+  --terminal-bg: #0d1117;
+  --terminal-row: rgba(255, 255, 255, 0.03);
+  --terminal-border: #21262d;
 }
 
 body {
