@@ -6,9 +6,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { arteries } = body;
 
-    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GOOGLE_GEMINI_API_KEY is not set' }, { status: 500 });
+      return NextResponse.json({ error: 'GEMINI_API_KEY is not set' }, { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
