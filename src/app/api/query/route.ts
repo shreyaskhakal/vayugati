@@ -8,25 +8,26 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not set in environment variables' }, { status: 500 });
+      return NextResponse.json({ error: 'GEMINI_API_KEY is not set' }, { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    const prompt = `You are the intelligence layer of the Vayu-Gati smart city digital twin. 
-You answer questions from the city operators based on the real-time telemetry context provided.
+    const prompt = `You are the AI intelligence layer of Vayu-Gati, a real-time smart city digital twin dashboard for Indian cities.
+You answer questions from city operators based on real-time telemetry data.
 
-Context (Real-time App State):
+Current App State (Telemetry Context):
 ${JSON.stringify(context, null, 2)}
 
-Operator Query:
-${question}
+Operator Query: ${question}
 
 Instructions:
-- Provide a concise, helpful, and professional answer based only on the context provided.
-- Do not mention that you are an AI or using context. Just answer directly.
-- If the question cannot be answered by the context, state that the information is currently unavailable in the telemetry stream.`;
+- Answer concisely and professionally in 2-4 sentences maximum.
+- Use specific numbers and node IDs from the context when available.
+- Do not say you are an AI. Respond as the city intelligence system.
+- If data is unavailable, say "Telemetry unavailable for that parameter."
+- Format numbers clearly (e.g., "72% load", "120ms latency").`;
 
     const result = await model.generateContentStream(prompt);
 
@@ -50,7 +51,7 @@ Instructions:
       },
     });
   } catch (error) {
-    console.error('Error in query API:', error);
+    console.error('Query API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

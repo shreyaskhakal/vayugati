@@ -12,36 +12,41 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json"
-      }
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: { responseMimeType: 'application/json' }
     });
 
-    const prompt = `You are an AI infrastructure maintenance planner for a smart city.
-I will provide a list of high-risk traffic arteries.
-For each artery, generate a specific, technical, and actionable maintenance recommendation (max 2 sentences).
+    const prompt = `You are an AI infrastructure maintenance planner for Indian smart cities (Pune metro area).
+Given high-risk traffic arteries, generate specific, actionable maintenance recommendations.
 
-Arteries:
+Arteries (IDs with risk %):
 ${JSON.stringify(arteries, null, 2)}
 
-Return ONLY a JSON object where keys are the artery IDs and values are the recommendation strings.
+Return ONLY a valid JSON object where keys are artery IDs and values are recommendation strings (max 2 sentences each).
+Be specific — mention inspection timelines, sensor types, or traffic management actions.
 Example:
 {
-  "BRG-1": "Schedule structural load inspection within 48h. Reduce heavy vehicle access on approach.",
-  "ART-4B": "Deploy traffic density sensor recalibration. Monitor wet-road traction metrics."
+  "BRG-1": "Schedule structural load inspection within 48h. Restrict heavy vehicles on NH-48 approach road.",
+  "ART-4B": "Recalibrate density sensors in Sector 4. Deploy wet-road friction monitoring before monsoon onset."
 }`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    
-    // Attempt to parse JSON response
-    const recommendations = JSON.parse(text);
+
+    let recommendations: Record<string, string> = {};
+    try {
+      recommendations = JSON.parse(text);
+    } catch {
+      // fallback static recommendations
+      arteries.forEach((id: string) => {
+        recommendations[id] = 'Schedule inspection within 72h. Monitor load metrics continuously.';
+      });
+    }
 
     return NextResponse.json({ recommendations });
   } catch (error) {
-    console.error('Error generating maintenance recommendations:', error);
+    console.error('Maintenance API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -10,7 +10,7 @@ import { X } from 'lucide-react';
 
 const containerStyle = { width: '100%', height: '100%' };
 
-const center = { lat: 40.7128, lng: -74.0060 };
+const center = { lat: 18.5204, lng: 73.8567 }; // Pune, India default
 
 const silverMapStyle: google.maps.MapTypeStyle[] = [
   { elementType: "geometry", stylers: [{ color: "#ffffff" }] },
@@ -102,25 +102,28 @@ export function GoogleMapWrapper({ timelineHour }: Props) {
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [mapCenter, setMapCenter] = useState(center);
   const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
   const [clickedJunctionId, setClickedJunctionId] = useState<string | null>(null);
   const routeOpacity = usePulsingOpacity(1400);
   const { theme } = useTheme();
-  const { junctions, setActiveJunctionId, activeJunctionId, relocateJunctions } = useStore();
+  const { junctions, setActiveJunctionId, activeJunctionId, relocateJunctions, cityZone, availableZones } = useStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Center map on active zone
+  const activeZone = availableZones.find(z => z.id === cityZone);
+  const [mapCenter, setMapCenter] = useState({ lat: activeZone?.lat ?? center.lat, lng: activeZone?.lng ?? center.lng });
+
+  // Re-center when zone changes
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        ({ coords: { latitude, longitude } }) => {
-          setMapCenter({ lat: latitude, lng: longitude });
-          relocateJunctions(latitude, longitude);
-        },
-        (err) => console.warn("Geolocation failed:", err)
-      );
+    if (activeZone) {
+      setMapCenter({ lat: activeZone.lat, lng: activeZone.lng });
+      if (map) {
+        map.panTo({ lat: activeZone.lat, lng: activeZone.lng });
+        map.setZoom(13);
+      }
     }
-  }, [relocateJunctions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityZone]);
 
   const onLoad = useCallback((m: google.maps.Map) => { setMap(m); }, []);
   const onUnmount = useCallback(() => { setMap(null); }, []);
