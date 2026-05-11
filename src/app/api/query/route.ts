@@ -6,13 +6,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { question, context } = body;
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not set' }, { status: 500 });
+      return NextResponse.json({ error: 'GOOGLE_GEMINI_API_KEY is not set' }, { status: 500 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const prompt = `You are the AI intelligence layer of Vayu-Gati, a real-time smart city digital twin dashboard for Indian cities.
 You answer questions from city operators based on real-time telemetry data.
